@@ -1,11 +1,12 @@
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
 pydantic==2.7.1
-supabase==2.4.6
+supabase==2.6.0
+gotrue==2.12.3
 python-dotenv==1.0.1
 httpx==0.27.0
 transformers>=4.40.0
-torch
+torch --index-url https://download.pytorch.org/whl/cpu
 sentencepiece
 accelerate
 google-genai
