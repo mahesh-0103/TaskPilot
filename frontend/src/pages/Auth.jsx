@@ -99,7 +99,7 @@ export default function Auth() {
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-[#1a1b1e] rounded-2xl shadow-[inset_4px_4px_8px_#131416,inset_-4px_-4px_8px_#212226] border border-white/[0.01] px-12 py-4 text-[14.5px] text-text-primary outline-none focus:ring-1 focus:ring-accent/30 transition-all font-ui placeholder:text-text-tertiary/20"
+          className="w-full bg-[#1a1b1e] rounded-2xl shadow-[inset_4px_4px_8px_#131416,inset_-4px_-4px_8px_#212226] border border-white/[0.01] px-12 py-4 text-[14.5px] text-text-primary outline-none focus:ring-1 focus:ring-accent transition-all font-ui placeholder:text-text-tertiary/20"
         />
         {showPasswordToggle && (
           <button
@@ -115,7 +115,7 @@ export default function Auth() {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#1a1b1e] px-4 font-sans selection:bg-accent/40 selection:text-white">
+    <div className="min-h-screen flex items-center justify-center bg-[#060606] px-4 font-sans selection:bg-accent selection:text-white">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}

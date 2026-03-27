@@ -58,7 +58,7 @@ function AppShell() {
   }, [user]);
 
   return (
-    <div className="flex bg-bg-base min-h-screen w-full font-sans selection:bg-accent/30 selection:text-white">
+    <div className="flex bg-bg-base min-h-screen w-full font-sans selection:bg-accent selection:text-white">
       <Sidebar />
       {/* Content wrapper with fixed sidebar compensation */}
       <main className="flex-1 w-full lg:pl-[280px]">
