@@ -7,7 +7,7 @@ import { Badge, Skeleton, EmptyState, Button, Divider } from '../components/ui/i
 import TaskDetailPanel from '../components/TaskDetailPanel.jsx';
 import useWorkflowStore from '../store/workflowStore';
 import useAuthStore from '../store/authStore';
-import { client } from '../api/client';
+import client from '../api/client';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 

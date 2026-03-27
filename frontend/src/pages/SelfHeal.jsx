@@ -5,6 +5,7 @@ import {
   ChevronRight, ArrowRight, Cpu, Network, History,
   Filter, MoreVertical, Plus
 } from 'lucide-react';
+import { clsx } from 'clsx';
 import { Badge, Button, Divider } from '../components/ui/index.jsx';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../store/authStore';
