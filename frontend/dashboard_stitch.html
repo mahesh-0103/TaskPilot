@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@100..900&amp;family=Geist+Mono:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-low": "#1b1b1d",
+                        "on-primary-container": "#eeefff",
+                        "outline-variant": "#434655",
+                        "secondary-fixed-dim": "#b4c5ff",
+                        "on-tertiary-fixed": "#360f00",
+                        "on-secondary": "#182d63",
+                        "primary-container": "#2563eb",
+                        "on-background": "#e5e1e4",
+                        "error-container": "#93000a",
+                        "secondary-fixed": "#dbe1ff",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "tertiary-fixed": "#ffdbcd",
+                        "inverse-surface": "#e5e1e4",
+                        "surface-container-highest": "#353437",
+                        "primary": "#b4c5ff",
+                        "outline": "#8d90a0",
+                        "surface-container-high": "#2a2a2c",
+                        "surface-container": "#201f21",
+                        "secondary-container": "#33467e",
+                        "on-error": "#690005",
+                        "background": "#131315",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#131315",
+                        "surface": "#131315",
+                        "surface-tint": "#b4c5ff",
+                        "inverse-on-surface": "#313032",
+                        "on-secondary-fixed": "#00174b",
+                        "on-surface": "#e5e1e4",
+                        "on-primary-fixed": "#00174b",
+                        "on-primary": "#002a78",
+                        "on-secondary-container": "#a4b6f5",
+                        "surface-container-lowest": "#0e0e10",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#31447b",
+                        "on-tertiary-container": "#ffede6",
+                        "on-tertiary": "#581e00",
+                        "tertiary-fixed-dim": "#ffb596",
+                        "inverse-primary": "#0053db",
+                        "on-surface-variant": "#c3c6d7",
+                        "on-tertiary-fixed-variant": "#7d2d00",
+                        "surface-variant": "#353437",
+                        "tertiary": "#ffb596",
+                        "tertiary-container": "#bc4800",
+                        "secondary": "#b4c5ff",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "surface-bright": "#39393b",
+                        "primary-fixed": "#dbe1ff"
+                    },
+                    fontFamily: {
+                        "headline": ["Instrument Serif", "serif"],
+                        "body": ["Geist", "sans-serif"],
+                        "label": ["Geist", "sans-serif"],
+                        "mono": ["Geist Mono", "monospace"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Geist', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .font-serif { font-family: 'Instrument Serif', serif; }
+        .font-mono { font-family: 'Geist Mono', monospace; }
+        
+        /* Custom Pilot Status Inset from Design System */
+        .pilot-status-inset {
+            background-color: #0e0e10; /* surface-container-lowest */
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+
+        /* Border Ban Override per Protocol */
+        .no-border { border: none !important; }
+    </style>
+</head>
+<body class="bg-background text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar per JSON -->
+<nav class="h-screen w-[220px] fixed left-0 top-0 bg-zinc-950 dark:bg-[#0C0C0E] flex flex-col py-6 px-4 space-y-2 z-50">
+<div class="mb-8 px-2">
+<h1 class="text-xl font-normal tracking-tight text-zinc-100 dark:text-[#E5E1E4] font-serif">TaskPilot</h1>
+<p class="text-[10px] uppercase tracking-widest text-zinc-500 font-mono mt-1">Automation Engine</p>
+</div>
+<div class="flex-1 space-y-1">
+<!-- Active: Dashboard -->
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-blue-600 dark:text-[#2563EB] font-medium bg-zinc-800/50 dark:bg-[#1B1B1D] opacity-80 scale-[0.99] transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="text-sm">Dashboard</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-zinc-400 dark:text-[#434655] hover:text-zinc-100 dark:hover:text-[#E5E1E4] hover:bg-zinc-800/30 dark:hover:bg-[#1B1B1D] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">dataset</span>
+<span class="text-sm">Extract</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-zinc-400 dark:text-[#434655] hover:text-zinc-100 dark:hover:text-[#E5E1E4] hover:bg-zinc-800/30 dark:hover:bg-[#1B1B1D] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">account_tree</span>
+<span class="text-sm">Workflow</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-zinc-400 dark:text-[#434655] hover:text-zinc-100 dark:hover:text-[#E5E1E4] hover:bg-zinc-800/30 dark:hover:bg-[#1B1B1D] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">monitoring</span>
+<span class="text-sm">Monitor</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-zinc-400 dark:text-[#434655] hover:text-zinc-100 dark:hover:text-[#E5E1E4] hover:bg-zinc-800/30 dark:hover:bg-[#1B1B1D] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">auto_fix_high</span>
+<span class="text-sm">Self-Heal</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-zinc-400 dark:text-[#434655] hover:text-zinc-100 dark:hover:text-[#E5E1E4] hover:bg-zinc-800/30 dark:hover:bg-[#1B1B1D] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">terminal</span>
+<span class="text-sm">Logs</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-zinc-400 dark:text-[#434655] hover:text-zinc-100 dark:hover:text-[#E5E1E4] hover:bg-zinc-800/30 dark:hover:bg-[#1B1B1D] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+<span class="text-sm">Calendar</span>
+</a>
+</div>
+<div class="pt-4 mt-4 border-t border-outline-variant/10 space-y-1">
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-zinc-400 dark:text-[#434655] hover:text-zinc-100 dark:hover:text-[#E5E1E4] hover:bg-zinc-800/30 dark:hover:bg-[#1B1B1D] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="text-sm">Notifications</span>
+</a>
+<a class="flex items-center space-x-3 px-3 py-2 rounded text-zinc-400 dark:text-[#434655] hover:text-zinc-100 dark:hover:text-[#E5E1E4] hover:bg-zinc-800/30 dark:hover:bg-[#1B1B1D] transition-colors duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+</div>
+<div class="pt-4 flex items-center justify-between px-2">
+<div class="flex space-x-2">
+<span class="material-symbols-outlined text-zinc-500 hover:text-zinc-200 cursor-pointer text-sm">dark_mode</span>
+<span class="material-symbols-outlined text-zinc-500 hover:text-zinc-200 cursor-pointer text-sm">palette</span>
+</div>
+<div class="w-6 h-6 rounded-full bg-surface-container-high border border-outline-variant/20 flex items-center justify-center text-[10px] font-mono">AX</div>
+</div>
+</nav>
+<!-- TopAppBar per JSON -->
+<header class="flex justify-end items-center h-16 px-8 w-[calc(100%-220px)] ml-auto fixed top-0 right-0 z-40 bg-transparent backdrop-blur-md">
+<div class="flex items-center space-x-6">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">search</span>
+<input class="bg-surface-container-low border-b-2 border-outline-variant/20 focus:border-primary-container focus:ring-0 text-xs py-1.5 pl-9 pr-4 w-48 transition-all font-mono outline-none" placeholder="Jump to task..." type="text"/>
+</div>
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined text-zinc-500 hover:text-zinc-200 transition-all cursor-pointer">help_outline</span>
+<span class="material-symbols-outlined text-zinc-500 hover:text-zinc-200 transition-all cursor-pointer">account_circle</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[220px] pt-16 min-h-screen p-8 flex flex-col space-y-8">
+<!-- Hero Section -->
+<section class="flex flex-col md:flex-row justify-between items-end">
+<div>
+<h2 class="text-5xl font-serif text-on-surface leading-tight">Good morning, Alex</h2>
+<p class="font-mono text-xs text-outline tracking-widest uppercase mt-2">Cycle: Active | Server: TP-NODE-04</p>
+</div>
+<div class="flex space-x-3 mt-6 md:mt-0">
+<button class="px-4 py-2 bg-primary-container text-white text-xs font-bold rounded flex items-center space-x-2 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>NEW TASK</span>
+</button>
+<button class="px-4 py-2 bg-surface-container-high text-on-surface text-xs font-bold rounded flex items-center space-x-2 hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-sm">ios_share</span>
+<span>EXPORT</span>
+</button>
+</div>
+</section>
+<!-- Stats Grid (Bento Style) -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<div class="bg-surface-container p-6 rounded-lg relative overflow-hidden group">
+<p class="font-mono text-[10px] text-outline uppercase tracking-widest">Total Executions</p>
+<h3 class="text-4xl font-serif mt-2">1,284</h3>
+<div class="absolute -right-2 -bottom-2 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-7xl">dynamic_feed</span>
+</div>
+</div>
+<div class="bg-surface-container p-6 rounded-lg relative overflow-hidden group">
+<p class="font-mono text-[10px] text-primary-container uppercase tracking-widest">Pending</p>
+<h3 class="text-4xl font-serif mt-2">42</h3>
+<div class="absolute -right-2 -bottom-2 opacity-5 text-primary-container group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-7xl">pending_actions</span>
+</div>
+</div>
+<div class="bg-surface-container p-6 rounded-lg relative overflow-hidden group">
+<p class="font-mono text-[10px] text-error uppercase tracking-widest">Delayed</p>
+<h3 class="text-4xl font-serif mt-2">03</h3>
+<div class="absolute -right-2 -bottom-2 opacity-5 text-error group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-7xl">error_outline</span>
+</div>
+</div>
+<div class="bg-surface-container p-6 rounded-lg relative overflow-hidden group">
+<p class="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">Completed</p>
+<h3 class="text-4xl font-serif mt-2">958</h3>
+<div class="absolute -right-2 -bottom-2 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-7xl">check_circle</span>
+</div>
+</div>
+</section>
+<!-- Main Body Grid: Activity | Tasks | Actions -->
+<div class="grid grid-cols-12 gap-8 items-start">
+<!-- Left: Activity Feed (Architectural Layout) -->
+<aside class="col-span-12 lg:col-span-3 space-y-6">
+<div>
+<h4 class="text-lg font-serif mb-4">Recent Activity</h4>
+<div class="space-y-4 pilot-status-inset p-4 rounded">
+<div class="flex space-x-3">
+<div class="w-1 h-8 bg-primary-container"></div>
+<div>
+<p class="text-[11px] font-mono text-on-surface">SCRAPER_V2 COMPLETED</p>
+<p class="text-[10px] text-outline font-mono">14:20:05 — 1.2s</p>
+</div>
+</div>
+<div class="flex space-x-3">
+<div class="w-1 h-8 bg-error"></div>
+<div>
+<p class="text-[11px] font-mono text-on-surface">AUTH_TIMEOUT ERROR</p>
+<p class="text-[10px] text-outline font-mono">13:58:12 — NODE_01</p>
+</div>
+</div>
+<div class="flex space-x-3">
+<div class="w-1 h-8 bg-zinc-700"></div>
+<div>
+<p class="text-[11px] font-mono text-on-surface">SYSTEM_REBOOT IDLE</p>
+<p class="text-[10px] text-outline font-mono">12:15:30 — LOGS_PURGED</p>
+</div>
+</div>
+<div class="flex space-x-3">
+<div class="w-1 h-8 bg-primary-container"></div>
+<div>
+<p class="text-[11px] font-mono text-on-surface">API_PUSH SUCCESS</p>
+<p class="text-[10px] text-outline font-mono">11:44:02 — 200_OK</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-high rounded p-4">
+<p class="font-mono text-[10px] text-outline uppercase tracking-widest mb-3">Nodes Health</p>
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-mono">TP-NODE-01</span>
+<div class="w-24 h-1 bg-surface-container-low rounded">
+<div class="h-full bg-primary-container w-[92%]"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-xs font-mono">TP-NODE-04</span>
+<div class="w-24 h-1 bg-surface-container-low rounded">
+<div class="h-full bg-primary-container w-[78%]"></div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Center: Task List (High Density) -->
+<section class="col-span-12 lg:col-span-7">
+<div class="flex items-center justify-between mb-6">
+<h4 class="text-lg font-serif">Active Task Engine</h4>
+<div class="flex items-center space-x-4">
+<span class="text-[10px] font-mono text-outline hover:text-on-surface cursor-pointer">ALL</span>
+<span class="text-[10px] font-mono text-primary-container cursor-pointer underline underline-offset-4">RUNNING</span>
+<span class="text-[10px] font-mono text-outline hover:text-on-surface cursor-pointer">PAUSED</span>
+</div>
+</div>
+<div class="overflow-hidden bg-surface-container rounded-lg">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-high/50 font-mono text-[10px] text-outline tracking-wider uppercase">
+<tr>
+<th class="py-3 px-4 w-10"></th>
+<th class="py-3 px-4">Task</th>
+<th class="py-3 px-4">Owner</th>
+<th class="py-3 px-4">Deadline</th>
+<th class="py-3 px-4">Priority</th>
+<th class="py-3 px-4">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<!-- Row 1 -->
+<tr class="h-[48px] group hover:bg-surface-container-high/40 transition-colors cursor-pointer">
+<td class="px-4"><input class="rounded-sm bg-surface-container-low border-outline-variant/30 text-primary-container focus:ring-0" type="checkbox"/></td>
+<td class="px-4 font-body text-xs text-on-surface">Data_Warehouse_Ingestion</td>
+<td class="px-4 font-mono text-[11px] text-outline">A. Chen</td>
+<td class="px-4 font-mono text-[11px] text-outline">24/05 — 18:00</td>
+<td class="px-4"><span class="px-2 py-0.5 bg-error-container text-on-error-container text-[9px] font-bold rounded uppercase">Critical</span></td>
+<td class="px-4">
+<div class="flex items-center space-x-4">
+<span class="flex items-center space-x-1.5 text-primary-container text-[10px] font-mono">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
+<span>Running</span>
+</span>
+<div class="opacity-0 group-hover:opacity-100 flex space-x-2 transition-opacity">
+<span class="material-symbols-outlined text-sm text-outline hover:text-on-surface">play_arrow</span>
+<span class="material-symbols-outlined text-sm text-outline hover:text-on-surface">edit</span>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="h-[48px] group hover:bg-surface-container-high/40 transition-colors cursor-pointer">
+<td class="px-4"><input class="rounded-sm bg-surface-container-low border-outline-variant/30 text-primary-container focus:ring-0" type="checkbox"/></td>
+<td class="px-4 font-body text-xs text-on-surface">Monthly_SEO_Audit_Stream</td>
+<td class="px-4 font-mono text-[11px] text-outline">M. Jordan</td>
+<td class="px-4 font-mono text-[11px] text-outline">25/05 — 09:00</td>
+<td class="px-4"><span class="px-2 py-0.5 bg-surface-container-highest text-on-surface text-[9px] font-bold rounded uppercase">Medium</span></td>
+<td class="px-4">
+<div class="flex items-center space-x-4">
+<span class="flex items-center space-x-1.5 text-outline text-[10px] font-mono">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+<span>Idle</span>
+</span>
+<div class="opacity-0 group-hover:opacity-100 flex space-x-2 transition-opacity">
+<span class="material-symbols-outlined text-sm text-outline hover:text-on-surface">play_arrow</span>
+<span class="material-symbols-outlined text-sm text-outline hover:text-on-surface">edit</span>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="h-[48px] group hover:bg-surface-container-high/40 transition-colors cursor-pointer">
+<td class="px-4"><input class="rounded-sm bg-surface-container-low border-outline-variant/30 text-primary-container focus:ring-0" type="checkbox"/></td>
+<td class="px-4 font-body text-xs text-on-surface">Backup_Critical_Assets_S3</td>
+<td class="px-4 font-mono text-[11px] text-outline">System</td>
+<td class="px-4 font-mono text-[11px] text-outline">Daily — 04:00</td>
+<td class="px-4"><span class="px-2 py-0.5 bg-surface-container-highest text-on-surface text-[9px] font-bold rounded uppercase">Low</span></td>
+<td class="px-4">
+<div class="flex items-center space-x-4">
+<span class="flex items-center space-x-1.5 text-zinc-500 text-[10px] font-mono">
+<span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
+<span>Queued</span>
+</span>
+<div class="opacity-0 group-hover:opacity-100 flex space-x-2 transition-opacity">
+<span class="material-symbols-outlined text-sm text-outline hover:text-on-surface">play_arrow</span>
+<span class="material-symbols-outlined text-sm text-outline hover:text-on-surface">edit</span>
+</div>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="h-[48px] group hover:bg-surface-container-high/40 transition-colors cursor-pointer">
+<td class="px-4"><input class="rounded-sm bg-surface-container-low border-outline-variant/30 text-primary-container focus:ring-0" type="checkbox"/></td>
+<td class="px-4 font-body text-xs text-on-surface">Lead_Gen_Validation_v4</td>
+<td class="px-4 font-mono text-[11px] text-outline">A. Alex</td>
+<td class="px-4 font-mono text-[11px] text-outline">Overdue</td>
+<td class="px-4"><span class="px-2 py-0.5 bg-error-container text-on-error-container text-[9px] font-bold rounded uppercase">Critical</span></td>
+<td class="px-4">
+<div class="flex items-center space-x-4">
+<span class="flex items-center space-x-1.5 text-error text-[10px] font-mono">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span>Failed</span>
+</span>
+<div class="opacity-0 group-hover:opacity-100 flex space-x-2 transition-opacity">
+<span class="material-symbols-outlined text-sm text-outline hover:text-on-surface">refresh</span>
+<span class="material-symbols-outlined text-sm text-outline hover:text-on-surface">edit</span>
+</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Right: Executive Actions (Contextual Menu) -->
+<aside class="col-span-12 lg:col-span-2 space-y-8">
+<div>
+<h4 class="text-sm font-mono tracking-widest text-outline uppercase mb-4">Quick Actions</h4>
+<div class="flex flex-col space-y-2">
+<button class="w-full text-left px-3 py-2 text-xs font-medium bg-surface-container hover:bg-surface-container-high rounded flex items-center justify-between transition-colors">
+<span>Resume All</span>
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+</button>
+<button class="w-full text-left px-3 py-2 text-xs font-medium bg-surface-container hover:bg-surface-container-high rounded flex items-center justify-between transition-colors">
+<span>Pause Engine</span>
+<span class="material-symbols-outlined text-sm">pause</span>
+</button>
+<button class="w-full text-left px-3 py-2 text-xs font-medium bg-surface-container hover:bg-surface-container-high rounded flex items-center justify-between transition-colors">
+<span>Flush Cache</span>
+<span class="material-symbols-outlined text-sm">delete_sweep</span>
+</button>
+</div>
+</div>
+<div>
+<h4 class="text-sm font-mono tracking-widest text-outline uppercase mb-4">System Status</h4>
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-outline-variant/10">
+<div class="flex items-center justify-center mb-4">
+<div class="relative w-24 h-24">
+<svg class="w-full h-full" viewbox="0 0 36 36">
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#2a2a2c" stroke-width="2"></path>
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#2563eb" stroke-dasharray="85, 100" stroke-width="2"></path>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-lg font-mono leading-none">85%</span>
+<span class="text-[8px] font-mono text-outline">LOAD</span>
+</div>
+</div>
+</div>
+<p class="text-[10px] text-center font-mono text-outline">Engine Integrity: Stable</p>
+</div>
+</div>
+<div class="relative rounded-lg overflow-hidden h-32 group">
+<img alt="cybersecurity" class="w-full h-full object-cover grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-50 transition-all duration-500" data-alt="Dark abstract futuristic circuit board lines with glowing blue data points and technical digital interface aesthetics" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJ81LateLnUcbEkDQUYkaZoIPQiLz5LyQti8M0a-QRKJ0L0D1QrkNIM4m5gtXyuagoZTDtcZNFnBFJi2LV2anfKHKruCoDOapE-CLFQjiX76S6O_1C91uuzNijabcjHDCMv5Ga3rl9qT5WZuomRQtHv4u8C062QvpYO8GVKS_a2Lipv0GTdjZy19kdxqRjM-3NNTV-OyeG_9uvm7A0soF4o7ofNgWRS1JAj60WtAXGTMU39-1VcO0Tm1bjSJH1sHhBWKRRaJ56uVdM"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent flex flex-col justify-end p-3">
+<span class="text-[9px] font-mono text-primary-container">UPGRADE READY</span>
+<p class="text-[10px] text-on-surface">V2.4 Enterprise</p>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</body></html>
