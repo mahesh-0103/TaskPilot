@@ -1,341 +1,204 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  RefreshCw, Sparkles, Calendar, ScrollText, ClipboardList,
-  LayoutDashboard
+import { 
+  Zap, Activity, Clock, Shield, Terminal, 
+  ChevronRight, ArrowUpRight, Plus, Search,
+  Filter, MoreHorizontal, Layout
 } from 'lucide-react';
-import { clsx } from 'clsx';
-import { Badge, Skeleton, EmptyState, Button } from '../components/ui/index.jsx';
-import TaskDetailPanel from '../components/TaskDetailPanel.jsx';
+import { Badge, Button, Divider } from '../components/ui/index.jsx';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../store/authStore';
-import { getTimeOfDay, formatDateLong, getDeadlineCountdown, formatDistanceToNow } from '../utils/time.js';
-import toast from 'react-hot-toast';
-
-function AnimatedCounter({ value, duration = 1000 }) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    let start = null;
-    const step = (ts) => {
-      if (!start) start = ts;
-      const p = Math.min((ts - start) / duration, 1);
-      setCount(Math.floor(p * value));
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [value]);
-  return <>{count}</>;
-}
-
-function DeadlineChip({ deadline }) {
-  const { text, urgency } = getDeadlineCountdown(deadline);
-  return (
-    <span className={clsx(
-      'font-mono text-[11px] px-2 py-0.5 rounded-md',
-      urgency === 'overdue' ? 'text-danger font-bold italic' :
-        urgency === 'critical' ? 'text-danger bg-danger-subtle' :
-          urgency === 'warning' ? 'text-warning bg-warning-subtle' :
-            'text-text-tertiary bg-bg-elevated'
-    )}>
-      {text}
-    </span>
-  );
-}
+import useWorkflowStore from '../store/workflowStore';
+import TaskDetailPanel from '../components/TaskDetailPanel.jsx';
 
 export default function Dashboard() {
-  const { user, profile } = useAuthStore();
-  const navigate = useNavigate();
-  const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const { tasks, loadTasks } = useWorkflowStore();
   const [selectedTask, setSelectedTask] = useState(null);
-  const [sortBy, setSortBy] = useState('deadline');
+  const [logs, setLogs] = useState([]);
 
-  // Fetch tasks from Supabase (user-scoped)
-  const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks', user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      return data || [];
-    },
-    refetchInterval: 8000,
-    enabled: !!user,
-  });
-
-  // Realtime subscription
   useEffect(() => {
-    if (!user) return;
-    const sub = supabase
-      .channel('tasks-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `user_id=eq.${user.id}` },
-        () => qc.invalidateQueries(['tasks']))
-      .subscribe();
-    return () => supabase.removeChannel(sub);
-  }, [user]);
+    loadTasks();
+    // Load recent activity logs from Supabase
+    supabase.from('logs')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(6)
+      .then(({ data }) => setLogs(data || []));
+  }, []);
 
-  // Fetch logs
-  const { data: logs = [] } = useQuery({
-    queryKey: ['logs', user?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from('logs').select('*')
-        .eq('user_id', user.id).order('timestamp', { ascending: false }).limit(5);
-      return data || [];
-    },
-    refetchInterval: 10000,
-    enabled: !!user,
-  });
-
-  // Realtime logs
-  useEffect(() => {
-    if (!user) return;
-    const sub = supabase
-      .channel('logs-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs', filter: `user_id=eq.${user.id}` },
-        () => qc.invalidateQueries(['logs']))
-      .subscribe();
-    return () => supabase.removeChannel(sub);
-  }, [user]);
-
-  const stats = {
-    total: tasks.length,
-    pending: tasks.filter(t => t.status === 'pending').length,
-    delayed: tasks.filter(t => t.status === 'delayed').length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-  };
-  const progress = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
-
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (sortBy === 'deadline') return a.deadline > b.deadline ? 1 : -1;
-    if (sortBy === 'priority') {
-      const p = { high: 0, medium: 1, low: 2 };
-      return (p[a.priority] || 2) - (p[b.priority] || 2);
-    }
-    if (sortBy === 'status') return a.status.localeCompare(b.status);
-    return 0;
-  });
-
-  const handleCheck = async (task) => {
-    const newChecked = !task.is_checked;
-    const newStatus = newChecked ? 'completed' : 'pending';
-    await supabase.from('tasks').update({ is_checked: newChecked, status: newStatus })
-      .eq('task_id', task.task_id);
-    qc.invalidateQueries(['tasks']);
-  };
-
-  const greeting = `Good ${getTimeOfDay()}, ${profile?.display_name || profile?.username || 'there'}.`;
+  const stats = [
+    { label: 'TOTAL EXECUTIONS', value: '1,284', trend: '+12%', color: 'text-primary' },
+    { label: 'PENDING', value: tasks.filter(t => t.status === 'pending').length, color: 'text-accent' },
+    { label: 'DELAYED', value: tasks.filter(t => t.status === 'delayed').length, color: 'text-danger' }
+  ];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-      className="space-y-6 pb-20 lg:pb-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-10 pb-20 max-w-[1400px] mx-auto"
     >
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="font-display text-[28px] text-text-primary">{greeting}</h1>
-          <p className="text-[13px] text-text-tertiary mt-0.5">{formatDateLong()}</p>
+      {/* System Status Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[11px] text-accent tracking-[0.2em] uppercase">System // Status:</span>
+          <Badge variant="success" className="font-mono text-[10px] uppercase tracking-widest px-2 py-0.5">Active</Badge>
         </div>
-        <Button variant="primary" size="md" onClick={() => navigate('/extract')}>
-          <Sparkles className="w-4 h-4" /> New Extraction
-        </Button>
+        <div className="flex items-center gap-6 text-text-tertiary">
+           <div className="flex items-center gap-2 group cursor-pointer">
+              <Search className="w-4 h-4 group-hover:text-text-primary transition-colors" />
+              <span className="text-[11px] font-mono tracking-widest hidden sm:inline">SEARCH COMMANDS...</span>
+           </div>
+           <Layout className="w-4 h-4 cursor-pointer hover:text-text-primary transition-colors" />
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label: 'Total Tasks', val: stats.total, color: 'text-text-primary' },
-          { label: 'Pending', val: stats.pending, color: 'text-text-secondary' },
-          { label: 'Delayed', val: stats.delayed, color: 'text-danger', pulse: stats.delayed > 0 },
-          { label: 'Completed', val: stats.completed, color: 'text-success' },
-        ].map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
-            className="glass-sm p-5"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              {s.pulse && <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />}
-              <span className="text-[13px] font-mono text-text-tertiary uppercase tracking-[0.06em]">{s.label}</span>
+      {/* Greeting & Telemetry */}
+      <header className="space-y-4">
+        <h1 className="text-[64px] leading-none font-display italic text-text-primary tracking-tight">
+          Good morning, {user?.user_metadata?.full_name?.split(' ')[0] || user?.user_metadata?.username || 'Executive'}.
+        </h1>
+        <div className="flex items-center gap-6 font-mono text-[11px] text-text-tertiary tracking-wider uppercase">
+          <span>LATENCY: <span className="text-success">12ms</span></span>
+          <span>//</span>
+          <span>DISTRIBUTED NODES: <span className="text-accent">04</span></span>
+          <span>//</span>
+          <span>UPTIME: <span className="text-text-secondary">99.9%</span></span>
+        </div>
+      </header>
+
+      {/* Primary Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {stats.map((stat, i) => (
+          <div key={i} className="glass-sm p-8 rounded-[24px] border-white/5 space-y-6 hover:bg-white/[0.04] transition-all">
+            <p className="font-mono text-[11px] text-text-tertiary tracking-[0.2em] uppercase">{stat.label}</p>
+            <div className="flex items-baseline gap-4">
+              <span className={`text-[64px] font-display leading-none ${stat.color}`}>{stat.value}</span>
+              {stat.trend && <span className="text-success text-[14px] font-mono">{stat.trend}</span>}
             </div>
-            <span className={clsx('text-[38px] font-semibold font-ui leading-none', s.color)}>
-              {isLoading ? '—' : <AnimatedCounter value={s.val} />}
-            </span>
-          </motion.div>
+          </div>
         ))}
       </div>
 
-      {/* Progress bar */}
-      <div className="glass-sm px-5 py-4">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-[14px] font-ui font-medium text-text-primary">Workflow Progress</span>
-          <span className="text-[13px] font-mono text-text-tertiary">{stats.completed} / {stats.total} complete</span>
-        </div>
-        <div className="h-1 w-full bg-bg-elevated rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="h-full rounded-full bg-accent"
-          />
-        </div>
-      </div>
-
-      {/* Task List */}
-      <div className="glass">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle">
-          <h2 className="text-[20px] font-semibold text-text-primary">Active Tasks</h2>
-          <select
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-            className="bg-bg-elevated border border-border-default rounded-lg px-3 h-8 text-[13px] text-text-secondary outline-none cursor-pointer"
-          >
-            <option value="deadline">Sort: Deadline</option>
-            <option value="priority">Sort: Priority</option>
-            <option value="status">Sort: Status</option>
-          </select>
-        </div>
-
-        {isLoading ? (
-          <div className="p-5 space-y-3">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}
-          </div>
-        ) : tasks.length === 0 ? (
-          <EmptyState
-            icon={ClipboardList}
-            heading="No tasks yet"
-            subtext="Extract from a meeting transcript to get started."
-            action={<Button variant="primary" size="sm" onClick={() => navigate('/extract')}>Extract Tasks</Button>}
-          />
-        ) : (
-          <div>
-            {/* Headers */}
-            <div className="grid grid-cols-[32px_1fr_80px_100px_80px_80px] gap-3 px-5 py-2 text-[11px] font-mono text-text-tertiary uppercase tracking-[0.08em] border-b border-border-subtle">
-              <span />
-              <span>Task</span>
-              <span className="hidden md:block">Owner</span>
-              <span className="hidden md:block">Deadline</span>
-              <span>Priority</span>
-              <span>Status</span>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Operational Queue */}
+        <section className="lg:col-span-8 space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="font-mono text-[13px] tracking-[0.2em] uppercase text-text-secondary font-semibold">Operational Queue</h2>
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" className="text-[10px] font-mono text-text-tertiary uppercase tracking-widest hover:text-text-primary">
+                <Filter className="w-3 h-3 mr-2" /> Filter
+              </Button>
+              <Button variant="ghost" size="sm" className="text-text-tertiary hover:text-text-primary">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
             </div>
-            {sortedTasks.slice(0, 20).map((t) => (
-              <div
-                key={t.task_id}
-                className="grid grid-cols-[32px_1fr_80px_100px_80px_80px] gap-3 items-center px-5 py-3.5 border-b border-border-subtle hover:bg-bg-elevated transition-colors group"
-              >
-                {/* Checkbox */}
-                <button
-                  onClick={() => handleCheck(t)}
-                  aria-label={t.is_checked ? 'Uncheck task' : 'Check task'}
-                  className={clsx(
-                    'w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center transition-all cursor-pointer flex-shrink-0',
-                    t.is_checked
-                      ? 'bg-accent border-accent'
-                      : 'border-border-strong hover:border-accent'
-                  )}
-                >
-                  {t.is_checked && (
-                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                      <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </button>
+          </div>
 
-                {/* Task text */}
-                <button
-                  className={clsx(
-                    'text-left text-[14px] font-ui truncate transition-colors',
-                    t.is_checked ? 'text-text-tertiary line-through' : 'text-text-primary hover:text-accent'
-                  )}
-                  onClick={() => setSelectedTask(t)}
-                >
-                  {t.task}
-                </button>
+          <div className="glass-sm rounded-[32px] overflow-hidden border-white/5">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="px-8 py-6 text-[11px] font-mono text-text-tertiary uppercase tracking-widest font-medium">Task Identifier</th>
+                  <th className="px-8 py-6 text-[11px] font-mono text-text-tertiary uppercase tracking-widest text-right font-medium">Owner</th>
+                  <th className="px-8 py-6 text-[11px] font-mono text-text-tertiary uppercase tracking-widest text-right font-medium">Deadline</th>
+                  <th className="px-8 py-6 text-[11px] font-mono text-text-tertiary uppercase tracking-widest text-right font-medium">Priority</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {tasks.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-8 py-24 text-center text-text-tertiary font-ui italic text-[15px]">No active directives in queue.</td>
+                  </tr>
+                ) : tasks.slice(0, 5).map((t) => (
+                  <tr 
+                    key={t.task_id} 
+                    onClick={() => setSelectedTask(t)}
+                    className="group hover:bg-white/[0.02] cursor-pointer transition-all duration-300"
+                  >
+                    <td className="px-8 py-7">
+                      <div className="flex items-center gap-5">
+                        <div className={`w-1 h-8 rounded-full transition-shadow duration-500 ${
+                          t.status === 'delayed' ? 'bg-danger shadow-[0_0_12px_rgba(239,68,68,0.4)]' : 'bg-accent shadow-[0_0_12px_rgba(37,99,235,0.4)]'
+                        }`} />
+                        <div>
+                          <p className="font-mono text-[14px] text-text-primary group-hover:text-accent transition-colors">TP-{t.task_id.slice(0,3).toUpperCase()}: {t.task}</p>
+                          <p className="text-[10px] font-mono text-text-dim uppercase tracking-widest mt-1">Status: {t.status}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-7 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-mono text-accent uppercase">
+                          {t.owner.charAt(0)}
+                        </div>
+                        <span className="text-[14px] font-ui text-text-secondary">{t.owner}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-7 text-right">
+                       <span className="font-mono text-[12px] text-text-tertiary uppercase">{t.deadline}</span>
+                    </td>
+                    <td className="px-8 py-7 text-right">
+                      <Badge variant={t.priority} className="font-mono text-[10px] uppercase tracking-widest px-3">{t.priority}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-                <span className="text-[13px] text-text-secondary hidden md:block truncate">{t.owner}</span>
-                <span className="hidden md:block"><DeadlineChip deadline={t.deadline} /></span>
-                <span><Badge variant={t.priority}>{t.priority}</Badge></span>
-                <span><Badge variant={t.status}>{t.status}</Badge></span>
+        {/* System Activity Feed */}
+        <section className="lg:col-span-4 space-y-6">
+          <h2 className="font-mono text-[13px] tracking-[0.2em] uppercase text-text-secondary font-semibold px-2">System Activity Feed</h2>
+          <div className="glass-sm p-8 rounded-[32px] border-white/5 space-y-8 h-full min-h-[400px]">
+            {logs.length === 0 ? (
+               <div className="flex flex-col items-center justify-center h-full opacity-30 italic text-[14px]">
+                 No system logs recorded.
+               </div>
+            ) : logs.map((log) => (
+              <div key={log.log_id} className="flex gap-5 items-start relative group">
+                <div className="flex flex-col items-center">
+                  <div className="w-2 h-2 rounded-full bg-accent ring-4 ring-accent/10 mt-1.5" />
+                  <div className="w-px h-full bg-white/5 absolute top-4 group-last:hidden" />
+                </div>
+                <div className="space-y-1 pb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-[12px] text-accent">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                    <span className="text-[12px] text-text-primary font-semibold uppercase tracking-wider">{log.action}</span>
+                  </div>
+                  <p className="text-[13px] text-text-tertiary font-ui leading-relaxed">{log.reason}</p>
+                  {log.decision_trace && <p className="font-mono text-[9px] text-text-dim uppercase tracking-[0.2em] pt-1">HASH: {log.decision_trace.slice(0, 12)}</p>}
+                </div>
               </div>
             ))}
-          </div>
-        )}
-      </div>
 
-      {/* Bottom split */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Recent Activity */}
-        <div className="lg:col-span-3 glass-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[16px] font-semibold text-text-primary">Recent Activity</h3>
-            <Link to="/logs" className="text-[13px] text-text-tertiary hover:text-accent transition-colors">View all →</Link>
-          </div>
-          {logs.length === 0 ? (
-            <p className="text-[13px] text-text-tertiary">No activity recorded yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {logs.map((l, i) => (
-                <motion.div
-                  key={l.log_id || i}
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className={clsx(
-                    'flex items-start gap-3 pl-3',
-                    l.action?.includes('delayed') ? 'border-l-2 border-danger' :
-                      l.action?.includes('reassigned') ? 'border-l-2 border-warning' :
-                        'border-l-2 border-accent'
-                  )}
-                >
-                  <div className="flex-1">
-                    <p className="text-[14px] text-text-primary">{l.action}</p>
-                    <p className="text-[12px] text-text-secondary mt-0.5">{l.reason}</p>
-                  </div>
-                  <span className="font-mono text-[11px] text-text-tertiary flex-shrink-0">
-                    {l.timestamp ? formatDistanceToNow(l.timestamp) : ''}
-                  </span>
-                </motion.div>
-              ))}
+            <div className="flex gap-5 items-start opacity-40">
+               <div className="w-2 h-2 rounded-full bg-text-tertiary mt-1.5" />
+               <div className="space-y-1">
+                  <span className="font-mono text-[12px]">09:15</span>
+                  <p className="text-[13px] font-ui">System: automated daily cleanup of cache-nodes.</p>
+               </div>
             </div>
-          )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="lg:col-span-2 glass-sm p-5">
-          <h3 className="text-[16px] font-semibold text-text-primary mb-4">Quick Actions</h3>
-          <div className="space-y-2">
-            {[
-              { icon: Sparkles, label: 'Extract New Tasks', to: '/extract' },
-              { icon: RefreshCw, label: 'Run Self-Heal', to: '/heal' },
-              { icon: Calendar, label: 'Open Calendar', to: '/calendar' },
-              { icon: ScrollText, label: 'View Full Logs', to: '/logs' },
-            ].map(({ icon: Icon, label, to }) => (
-              <Link
-                key={to}
-                to={to}
-                className="flex items-center gap-3 w-full h-10 px-3 rounded-lg bg-bg-elevated border border-border-default text-[14px] text-text-secondary hover:text-text-primary hover:border-border-strong transition-all"
-              >
-                <Icon className="w-4 h-4 text-accent flex-shrink-0" />
-                {label}
-              </Link>
-            ))}
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* Task Detail Panel */}
+      {/* Detail Overlay */}
       <AnimatePresence>
         {selectedTask && (
           <TaskDetailPanel task={selectedTask} onClose={() => setSelectedTask(null)} />
         )}
       </AnimatePresence>
+
+      {/* Floating Plus */}
+      <Button 
+        variant="accent" 
+        className="fixed bottom-10 right-10 w-16 h-16 rounded-[20px] shadow-[0_20px_50px_rgba(37,99,235,0.3)] !p-0 z-50 flex items-center justify-center"
+      >
+        <Plus className="w-8 h-8" />
+      </Button>
     </motion.div>
   );
 }

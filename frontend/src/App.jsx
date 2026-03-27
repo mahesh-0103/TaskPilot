@@ -58,17 +58,17 @@ function AppShell() {
   }, [user]);
 
   return (
-    <div className="flex h-screen w-full bg-bg-base overflow-hidden font-sans">
+    <div className="flex bg-bg-base min-h-screen w-full font-sans selection:bg-accent/30 selection:text-white">
       <Sidebar />
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <div className="flex-1 p-6 sm:p-10 lg:p-16 xl:p-24 max-w-[1600px] mx-auto w-full">
+      {/* Content wrapper with fixed sidebar compensation */}
+      <main className="flex-1 w-full lg:pl-[280px]">
+        <div className="p-6 sm:p-10 lg:p-16 xl:p-24 max-w-[1600px] mx-auto w-full">
           <AnimatePresence mode="wait">
             <Outlet />
           </AnimatePresence>
         </div>
       </main>
       <MobileNav />
-      <QuickAddFAB />
     </div>
   );
 }
@@ -112,7 +112,7 @@ export default function App() {
                   <Route path="/extract" element={<><Helmet title="Extract Tasks" /><Extract /></>} />
                   <Route path="/workflow" element={<><Helmet title="Workflow" /><Workflow /></>} />
                   <Route path="/monitor" element={<><Helmet title="Monitor" /><Monitor /></>} />
-                  <Route path="/heal" element={<><Helmet title="Self-Heal" /><SelfHeal /></>} />
+                  <Route path="/self-heal" element={<><Helmet title="Self-Heal" /><SelfHeal /></>} />
                   <Route path="/logs" element={<><Helmet title="Audit Log" /><Logs /></>} />
                   <Route path="/calendar" element={<><Helmet title="Calendar" /><Calendar /></>} />
                   <Route path="/notifications" element={<><Helmet title="Notifications" /><Notifications /></>} />

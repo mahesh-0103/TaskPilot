@@ -1,280 +1,118 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Mail, Trash2 } from 'lucide-react';
-import { Button, Badge } from './ui/index.jsx';
+import { 
+  X, Clock, Calendar, Shield, Zap, Terminal, 
+  Trash2, CheckCircle, AlertTriangle, ExternalLink,
+  Cpu, Share2, Archive
+} from 'lucide-react';
+import { Badge, Button, Divider } from './ui/index.jsx';
 import { supabase } from '../lib/supabase';
-import useWorkflowStore from '../store/workflowStore';
-import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
-import { clsx } from 'clsx';
-import { formatDistanceToNow } from '../utils/time.js';
-
-function PropertyRow({ label, children }) {
-  return (
-    <div className="flex items-center min-h-11 border-b border-border-subtle last:border-0 hover:bg-bg-elevated px-4 transition-colors">
-      <span className="text-[12px] font-ui text-text-tertiary w-28 flex-shrink-0">{label}</span>
-      <div className="flex-1 text-[14px] text-text-primary">{children}</div>
-    </div>
-  );
-}
+import useAuthStore from '../store/authStore';
 
 export default function TaskDetailPanel({ task, onClose }) {
-  const { updateTask, removeTask } = useWorkflowStore();
-  const { user } = useAuthStore();
-  const [taskData, setTaskData] = useState(task);
-  const [logs, setLogs] = useState([]);
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(task?.task || '');
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [calPushing, setCalPushing] = useState(false);
-  const [reminderSending, setReminderSending] = useState(false);
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const { user, providerToken } = useAuthStore();
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Keyboard close
-  useEffect(() => {
-    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [onClose]);
-
-  // Load task logs
-  useEffect(() => {
-    if (!task?.task_id) return;
-    supabase
-      .from('logs')
-      .select('*')
-      .eq('task_id', task.task_id)
-      .order('timestamp', { ascending: false })
-      .limit(3)
-      .then(({ data }) => setLogs(data || []));
-  }, [task?.task_id]);
-
-  const saveField = async (field, value) => {
-    const updated = { ...taskData, [field]: value, updated_at: new Date().toISOString() };
-    setTaskData(updated);
-    updateTask(taskData.task_id, { [field]: value });
-    await supabase.from('tasks').update({ [field]: value, updated_at: updated.updated_at }).eq('task_id', taskData.task_id);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteConfirm) { setDeleteConfirm(true); setTimeout(() => setDeleteConfirm(false), 3000); return; }
-    await supabase.from('tasks').delete().eq('task_id', taskData.task_id);
-    removeTask(taskData.task_id);
-    toast.success('Task deleted.');
-    onClose();
-  };
-
-  const handleCalPush = async () => {
-    const pToken = useAuthStore.getState().providerToken;
-    if (!pToken) { toast.error('Connect with Google first.'); return; }
-    setCalPushing(true);
+  const handleSyncToCalendar = async () => {
+    if (!providerToken) {
+       toast.error('Google Auth Required for Sync');
+       return;
+    }
+    setIsSyncing(true);
     try {
-      const res = await fetch(`${API_BASE}/calendar/push-task`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/calendar/create-event`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${useAuthStore.getState().session?.access_token}` },
-        body: JSON.stringify({ task_id: taskData.task_id, access_token: pToken }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${providerToken}`
+        },
+        body: JSON.stringify({
+          task_id: task.task_id,
+          user_id: user.id,
+          summary: task.task,
+          description: `Strategic objective: ${task.task}`,
+          start_time: new Date().toISOString(),
+          end_time: new Date(Date.now() + 3600000).toISOString()
+        })
       });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.detail);
-      toast.success('Added to Google Calendar!');
-      await saveField('calendar_event_id', d.event_id);
-    } catch (e) { toast.error(e.message); } finally { setCalPushing(false); }
+      if (!response.ok) throw new Error('Sync failed');
+      toast.success('Objective Synchronized to Google Calendar');
+    } catch (e) {
+      toast.error('Calendar Sync Failed: ' + e.message);
+    } finally {
+      setIsSyncing(false);
+    }
   };
-
-  const handleSendReminder = async () => {
-    const pToken = useAuthStore.getState().providerToken;
-    if (!pToken) { toast.error('Connect with Google first.'); return; }
-    const email = prompt('Send reminder to email:');
-    if (!email) return;
-    setReminderSending(true);
-    try {
-      const res = await fetch(`${API_BASE}/send-reminder`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${useAuthStore.getState().session?.access_token}` },
-        body: JSON.stringify({ task_id: taskData.task_id, access_token: pToken, email }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.detail);
-      toast.success('Reminder email sent!');
-    } catch (e) { toast.error(e.message); } finally { setReminderSending(false); }
-  };
-
-  if (!task) return null;
 
   return (
-    <>
-      {/* Overlay */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <motion.div
+      initial={{ x: '100%' }}
+      animate={{ x: 0 }}
+      exit={{ x: '100%' }}
+      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+      className="fixed right-0 top-0 h-full w-[440px] bg-[#0A0A0A] border-l border-white/5 z-50 p-10 overflow-y-auto shadow-2xl"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-12">
+        <span className="font-mono text-[11px] text-accent tracking-[0.2em] uppercase">TP-{task.task_id.slice(0,3).toUpperCase()} // Detail</span>
+        <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-xl text-text-tertiary hover:text-text-primary transition-all">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-      {/* Panel */}
-      <motion.div
-        initial={{ x: 380, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: 380, opacity: 0 }}
-        transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed right-0 top-0 bottom-0 w-[380px] z-50 glass-modal rounded-none rounded-l-2xl overflow-y-auto flex flex-col"
-      >
-        {/* Top bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle flex-shrink-0">
-          <Badge variant={taskData.status}>{taskData.status}</Badge>
-          <button onClick={onClose} aria-label="Close panel" className="text-text-tertiary hover:text-text-primary cursor-pointer transition-colors">
-            <X className="w-[18px] h-[18px]" />
-          </button>
+      {/* Task Heading */}
+      <section className="space-y-6 mb-12">
+        <h2 className="text-[44px] leading-tight font-display italic text-text-primary tracking-tight">{task.task}</h2>
+        <p className="text-[17px] text-text-secondary font-ui leading-relaxed">
+           Refining vector clusters for high-speed retrieval of encrypted task nodes. High computational load expected on Node-04.
+        </p>
+      </section>
+
+      {/* Attributes */}
+      <div className="space-y-10">
+        <div className="space-y-4">
+           <span className="font-mono text-[10px] text-text-tertiary tracking-[0.2em] uppercase">Assigned Resources</span>
+           <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-accent text-[10px] flex items-center justify-center font-mono">AK</div>
+              <div className="w-8 h-8 rounded-full bg-warning text-[10px] flex items-center justify-center font-mono">ML</div>
+              <div className="w-8 h-8 rounded-full bg-white/10 text-[10px] flex items-center justify-center font-mono">+2</div>
+           </div>
         </div>
 
-        {/* Task Title */}
-        <div className="px-4 pt-4 pb-3 border-b border-border-subtle">
-          {editingTitle ? (
-            <textarea
-              autoFocus
-              className="w-full text-[18px] font-medium text-text-primary bg-transparent border-b border-accent outline-none resize-none leading-relaxed"
-              value={titleDraft}
-              rows={3}
-              onChange={e => setTitleDraft(e.target.value)}
-              onBlur={async () => {
-                setEditingTitle(false);
-                if (titleDraft !== taskData.task) await saveField('task', titleDraft);
-              }}
-            />
-          ) : (
-            <p
-              className="text-[18px] font-medium text-text-primary leading-relaxed cursor-text hover:text-accent transition-colors"
-              onClick={() => { setEditingTitle(true); setTitleDraft(taskData.task); }}
-            >
-              {taskData.task}
-            </p>
-          )}
+        <div className="space-y-4">
+           <span className="font-mono text-[10px] text-text-tertiary tracking-[0.2em] uppercase">Execution Map</span>
+           <div className="glass-sm h-[300px] rounded-[32px] overflow-hidden relative border-white/10">
+              <img src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=1000" alt="Map" className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale brightness-50" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-accent rounded-full animate-ping" />
+           </div>
         </div>
 
-        {/* Properties */}
-        <div className="flex-1">
-          <p className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider px-4 py-3">Properties</p>
-
-          <PropertyRow label="Owner">
-            <input
-              className="bg-transparent text-text-primary text-[14px] w-full outline-none focus:text-accent"
-              defaultValue={taskData.owner}
-              onBlur={e => saveField('owner', e.target.value)}
-            />
-          </PropertyRow>
-
-          <PropertyRow label="Deadline">
-            <input
-              type="date"
-              className="bg-transparent text-text-primary text-[14px] outline-none focus:text-accent cursor-pointer [color-scheme:dark]"
-              defaultValue={taskData.deadline}
-              onBlur={e => saveField('deadline', e.target.value)}
-              onChange={e => saveField('deadline', e.target.value)}
-            />
-          </PropertyRow>
-
-          <PropertyRow label="Priority">
-            <select
-              className="bg-transparent text-text-primary text-[14px] outline-none cursor-pointer"
-              defaultValue={taskData.priority}
-              onChange={e => saveField('priority', e.target.value)}
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </PropertyRow>
-
-          <PropertyRow label="Status">
-            <select
-              className="bg-transparent text-text-primary text-[14px] outline-none cursor-pointer"
-              defaultValue={taskData.status}
-              onChange={e => saveField('status', e.target.value)}
-            >
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="delayed">Delayed</option>
-            </select>
-          </PropertyRow>
-
-          {taskData.depends_on?.length > 0 && (
-            <PropertyRow label="Depends on">
-              <span className="font-mono text-[11px] text-text-tertiary">
-                {taskData.depends_on.join(', ').slice(0, 60)}
-              </span>
-            </PropertyRow>
-          )}
-
-          <PropertyRow label="Created">
-            <span className="text-text-secondary text-[13px]">
-              {taskData.created_at ? formatDistanceToNow(taskData.created_at) : '—'}
-            </span>
-          </PropertyRow>
-
-          <PropertyRow label="Task ID">
-            <span className="font-mono text-[11px] text-text-tertiary">{taskData.task_id?.slice(0, 12)}...</span>
-          </PropertyRow>
-
-          {/* Integrations */}
-          <p className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider px-4 py-3">Integrations</p>
-          <div className="px-4 space-y-2 pb-4">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full justify-start"
-              onClick={handleCalPush}
-              disabled={calPushing}
-            >
-              <Calendar className="w-4 h-4" />
-              {taskData.calendar_event_id ? 'View in Calendar ↗' : (calPushing ? 'Adding...' : 'Add to Google Calendar')}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full justify-start"
-              onClick={handleSendReminder}
-              disabled={reminderSending}
-            >
-              <Mail className="w-4 h-4" />
-              {reminderSending ? 'Sending...' : 'Send Email Reminder'}
-            </Button>
-          </div>
-
-          {/* Activity */}
-          {logs.length > 0 && (
-            <>
-              <p className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider px-4 py-3">Activity</p>
-              <div className="px-4 pb-4 space-y-2">
-                {logs.map((log) => (
-                  <div key={log.log_id} className="flex justify-between items-start">
-                    <span className="text-[13px] text-text-secondary flex-1">{log.action}</span>
-                    <span className="font-mono text-[11px] text-text-tertiary ml-2 flex-shrink-0">
-                      {log.timestamp ? formatDistanceToNow(log.timestamp) : ''}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Delete */}
-          <div className="px-4 pb-6 pt-2">
-            <button
-              onClick={handleDeleteConfirm}
-              className={clsx(
-                'w-full h-9 rounded-lg text-[13px] font-ui transition-colors cursor-pointer',
-                deleteConfirm
-                  ? 'bg-danger-subtle text-danger border border-danger/30'
-                  : 'text-text-tertiary hover:text-danger hover:bg-danger-subtle border border-border-subtle'
-              )}
-            >
-              <Trash2 className="w-4 h-4 inline mr-1.5" />
-              {deleteConfirm ? 'Confirm delete?' : 'Delete task'}
-            </button>
-          </div>
+        {/* Console Log Log Overlay */}
+        <div className="glass-sm p-6 rounded-2xl border-white/5 bg-white/[0.01]">
+           <p className="font-mono text-[10px] text-text-tertiary uppercase tracking-widest mb-3">System Log 402-A</p>
+           <p className="font-mono text-[11px] text-accent leading-relaxed">Initializing sandbox environment...<br/>Awaiting handshake ...</p>
         </div>
-      </motion.div>
-    </>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-14 space-y-4">
+        <Button 
+          variant="accent" 
+          onClick={handleSyncToCalendar}
+          disabled={isSyncing}
+          className="w-full h-16 rounded-xl font-mono text-[11px] uppercase tracking-widest shadow-xl shadow-accent/20"
+        >
+          {isSyncing ? <span className="animate-pulse">Syncing...</span> : 'Execute Sub-Routine (Sync)'}
+        </Button>
+        <Button 
+          variant="ghost" 
+          className="w-full h-16 rounded-xl font-mono text-[11px] uppercase tracking-widest border border-white/5 hover:bg-white/5"
+        >
+          <Archive className="w-4 h-4 mr-2" /> Archive Task
+        </Button>
+      </div>
+    </motion.div>
   );
 }

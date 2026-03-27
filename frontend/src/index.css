@@ -1,54 +1,54 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Global State & Variables ──────────────────────────────── */
+/* ─── Sovereign Workspace Architecture ──────────────────────── */
 :root {
-  /* Accent (dynamic) */
-  --accent: #2563EB;
-  --accent-rgb: 37, 99, 235;
-  --accent-subtle: rgba(var(--accent-rgb), 0.12);
+  /* Core Palette */
+  --bg-base:        #060606;
+  --bg-surface:     #0A0A0A;
+  --bg-elevated:    #121212;
+  --bg-overlay:     rgba(10, 10, 10, 0.85);
 
-  /* Status Tokens */
-  --success: #16A34A;
-  --success-subtle: rgba(22, 163, 74, 0.10);
-  --warning: #D97706;
-  --warning-subtle: rgba(217, 119, 6, 0.10);
-  --danger: #DC2626;
-  --danger-subtle: rgba(220, 38, 38, 0.10);
-  --info: #2563EB;
-  --info-subtle: rgba(37, 99, 235, 0.10);
-}
+  /* Accents & Status */
+  --accent:         #2563EB;
+  --accent-soft:    rgba(37, 99, 235, 0.12);
+  --success:        #10B981;
+  --warning:        #F59E0B;
+  --danger:         #EF4444;
+  
+  /* Typography */
+  --text-primary:   #FFFFFF;
+  --text-secondary: #A3A3A3;
+  --text-tertiary:  #525252;
+  --text-dim:       #262626;
 
-/* Dark Mode Architecture (Default) */
-html, html.dark {
-  --bg-base:        #0e0e10;
-  --bg-surface:     rgba(19, 19, 21, 0.8);
-  --bg-elevated:    #1b1b1d;
-  --border-subtle:  #201f21;
-  --border-default: #353437;
-  --border-strong:  #434655;
-  --text-primary:   #e5e1e4;
-  --text-secondary: #c3c6d7;
-  --text-tertiary:  #8d90a0;
-  --text-disabled:  #434655;
+  /* Borders & Depth */
+  --border-subtle:  rgba(255, 255, 255, 0.04);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-strong:  rgba(255, 255, 255, 0.15);
+  
+  /* Geometry */
+  --radius-sm:      6px;
+  --radius-md:      12px;
+  --radius-lg:      20px;
+  --radius-xl:      40px;
+  
   color-scheme: dark;
 }
 
-/* Light Mode Architecture */
+/* Light Mode Overrides (Optional but maintained for continuity) */
 html.light {
-  --bg-base:        #F5F5F7;
-  --bg-surface:     rgba(255, 255, 255, 0.88);
-  --bg-elevated:    #ffffff;
-  --border-subtle:  rgba(0, 0, 0, 0.05);
-  --border-default: rgba(0, 0, 0, 0.09);
-  --border-strong:  rgba(0, 0, 0, 0.15);
-  --text-primary:   #0C0C0E;
-  --text-secondary: #5A5A64;
-  --text-tertiary:  #A0A0A8;
-  --text-disabled:  #C8C8CE;
+  --bg-base:        #F8F8F8;
+  --bg-surface:     #FFFFFF;
+  --bg-elevated:    #F0F0F0;
+  --text-primary:   #000000;
+  --text-secondary: #404040;
+  --text-tertiary:  #737373;
+  --border-subtle:  rgba(0, 0, 0, 0.04);
+  --border-default: rgba(0, 0, 0, 0.08);
   color-scheme: light;
 }
 
