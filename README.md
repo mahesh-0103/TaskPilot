@@ -1,54 +1,53 @@
-# TaskPilot – Executive Autonomous Workflow Execution System
+# 🛰️ TaskPilot
 
-**The Digital Chief of Staff for Modern Intelligence.**
+**The Sovereign Executive Layer for Autonomous Workflow Execution.**
 
-TaskPilot transforms unstructured meeting transcripts into structured, actionable strategies. It doesn’t just show you a list; it sequences objectives, monitors progress, and self-heals in the face of delays.
+TaskPilot is an intelligent command center that transforms unstructured meeting data into structured, self-healing workflow engines. It functions as a digital Chief of Staff, proactively identifying mission-critical objectives and ensuring project continuity through autonomous neural manifesting.
 
-## 🚀 Vision
-Built for precision and speed, TaskPilot uses a tiered intelligence layer (LLMs) and a premium "Soft UI" aesthetic to manage your team’s most critical objectives.
+---
 
-- **Synthesis**: Neural extraction of tasks, owners, and deadlines.
-- **Strategic Blueprint**: Intelligent sequencing via directed acyclic graphs.
-- **Self-Healing**: Autonomous recalibration when objectives are compromised.
-- **Cloud Presence**: Google Calendar & Gmail integration out of the box.
+### 🧠 Core Intelligence Systems
 
-## 🛠 Strategic Architecture
-- **Frontend**: React 18, Vite, Framer Motion, Tailwind (Inter & Instrument Serif).
-- **Backend**: FastAPI (Python 3.10+), Pydantic v2.
-- **Persistence**: Supabase (RLS enabled), PostgreSQL.
+*   **⚡ Neural Manifesting**: Leverages a "Competitive Race" between **Gemini 1.5 Flash** and **Mistral Large** to extract tasks, owners, and deadlines with sub-second latency.
+*   **♻️ Self-Healing Engine**: Real-time trajectory monitoring. When a bottleneck or delay is detected, TaskPilot autonomously recalibrates dependencies and reassigns priorities to protect the mission timeline.
+*   **📡 Orbital Synchronization**: Seamless projection of objectives to the cloud via **Google Calendar** and **Gmail** notifications, maintaining a persistent strategic presence.
+*   **🔐 Sovereign Security**: Built with a "Privacy First" architecture using **Supabase RLS** and local-first state handling for total data ownership.
 
-## 📦 Getting Started
+---
 
-### 1. Prerequisites
-- Node.js 18+
-- Python 3.10+
-- Supabase Account
+### 🛠️ Technical Architecture
 
-### 2. Environment Setup
-Create a `.env` in the root (and backend/frontend) with:
-```env
-SUPABASE_URL=YOUR_URL
-SUPABASE_KEY=YOUR_SERVICE_ROLE_KEY
-VITE_SUPABASE_URL=YOUR_URL
-VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
-```
+| Component | Technology |
+| :--- | :--- |
+| **Frontend** | React 18, Vite, Tailwind CSS, Framer Motion |
+| **Backend** | FastAPI (Python 3.10+), Pydantic v2 |
+| **Intelligence** | Google GenAI (Gemini), Mistral AI |
+| **Persistence** | Supabase (PostgreSQL, Auth, RLS) |
+| **Deployment** | Vercel (Frontend), Render (Backend) |
 
-### 3. Tactical Launch
-**Backend:**
+---
+
+### 🚀 Rapid Deployment
+
+#### 1. Backend Synchronization
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate
+# Windows: .\venv\Scripts\activate | Unix: source venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-**Frontend:**
+#### 2. Frontend Launch
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev -- --port 3000
 ```
 
+#### 3. Environment Calibration
+Configure `.env` files in both the `backend` and `frontend` directories with your **Supabase**, **Google**, and **Mistral** API credentials.
+
 ---
-*TaskPilot – Your Strategic Executive Layer • v1.2.0 • 2026*
+
+*TaskPilot • Your Strategic Executive Layer • v1.2.0 • 2026*
