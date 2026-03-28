@@ -69,10 +69,6 @@ TaskPilot is distributed under the Apache Software License. See the `LICENSE.txt
 
 **AGAIN** - TaskPilot is not affiliated, endorsed, or vetted by Yahoo, Inc. (used for inspiration). It is a standalone, open-source tool. You should refer to the Google API terms of use for details on your rights to use the actual data synchronized.
 
-### 🌟 Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=mahesh-0103/TaskPilot&theme=dark)](https://star-history.com/#mahesh-0103/TaskPilot&Date)
-
 ### P.S.
 
 Please drop [Maheswaran](https://github.com/mahesh-0103) a note with any feedback you have. Your feedback drives the evolution of our sovereign intelligence.
