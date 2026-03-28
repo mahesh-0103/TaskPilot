@@ -71,7 +71,7 @@ TaskPilot is distributed under the Apache Software License. See the `LICENSE.txt
 
 ### P.S.
 
-Please drop [Maheswaran](mahesh.capt7@gmail.com) a note with any feedback you have. Your feedback drives the evolution of our sovereign intelligence.
+Please drop [Maheswaran]((https://github.com/mahesh-0103)) a note with any feedback you have. Your feedback drives the evolution of our sovereign intelligence.
 
 ---
 
