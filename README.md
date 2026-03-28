@@ -67,29 +67,9 @@ $ npm run dev
 
 TaskPilot is distributed under the Apache Software License. See the [LICENSE.txt](./LICENSE.txt) file in the release for details.
 
-#### How to apply the Apache License to your work
-
-Include a copy of the Apache License, typically in a file called LICENSE, in your work, and consider also including a NOTICE file that references the License.
-
-To apply the Apache License to specific files in your work, attach the following boilerplate declaration:
-
-> Copyright 2026 Maheswaran
-> 
-> Licensed under the Apache License, Version 2.0 (the "License");
-> you may not use this file except in compliance with the License.
-> You may obtain a copy of the License at
-> 
->     http://www.apache.org/licenses/LICENSE-2.0
-> 
-> Unless required by applicable law or agreed to in writing, software
-> distributed under the License is distributed on an "AS IS" BASIS,
-> WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-> See the License for the specific language governing permissions and
-> limitations under the License.
-
 ### P.S.
 
-Please drop [Maheswaran]((https://github.com/mahesh-0103)) a note with any feedback you have. Your feedback drives the evolution of our sovereign intelligence.
+Please drop [Maheswaran](https://github.com/mahesh-0103) a note with any feedback you have. Your feedback drives the evolution of our sovereign intelligence.
 
 ---
 
