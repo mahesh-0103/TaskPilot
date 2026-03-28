@@ -77,19 +77,35 @@ class ModelService:
         if cached is not None:
             return cached
 
-        # Prioritize Gemini 1.5 Flash (Farthest/Lowest Latency)
-        gemini_tasks = self.predict_tasks_gemini(text)
-        if gemini_tasks:
-            _cache_set(cache_key, gemini_tasks)
-            return gemini_tasks
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from settings import settings
 
-        # Secondary: Mistral (Reliable but potentially slower)
-        mistral_tasks = self.predict_tasks_mistral(text)
-        if mistral_tasks:
-            _cache_set(cache_key, mistral_tasks)
-            return mistral_tasks
+        tasks_to_try = []
+        if settings.GOOGLE_API_KEY:
+            tasks_to_try.append((self.predict_tasks_gemini, "Gemini"))
+        if settings.MISTRAL_API_KEY:
+            tasks_to_try.append((self.predict_tasks_mistral, "Mistral"))
 
-        logger.warning("All LLM extraction attempts failed.")
+        if not tasks_to_try:
+            logger.warning("No LLM API keys configured.")
+            return []
+
+        # Start a competitive race
+        with ThreadPoolExecutor(max_workers=len(tasks_to_try)) as executor:
+            future_to_name = {executor.submit(fn, text): name for fn, name in tasks_to_try}
+            
+            for future in as_completed(future_to_name):
+                name = future_to_name[future]
+                try:
+                    result = future.result()
+                    if result:
+                        logger.info(f"RACE WINNER: {name} manifested data first.")
+                        _cache_set(cache_key, result)
+                        return result
+                except Exception as e:
+                    logger.error(f"RACE PARTICIPANT FAILED ({name}): {e}")
+
+        logger.warning("All participants in the neural race failed to manifest data.")
         return []
 
     def predict_tasks_mistral(self, text: str) -> list:
