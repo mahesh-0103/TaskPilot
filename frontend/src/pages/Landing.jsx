@@ -110,15 +110,15 @@ export default function Landing() {
               className="text-[52px] md:text-[52px] text-[34px]"
               style={{ fontSize: 'clamp(34px, 5vw, 52px)' }}
             >
-              Meeting notes in.
+              The Sovereign Executive Layer.
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.27 }}
-              style={{ fontSize: 'clamp(34px, 5vw, 52px)' }}
+              style={{ fontSize: 'clamp(34px, 5vw, 52px)', background: 'linear-gradient(to right, var(--text-primary), var(--text-tertiary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
             >
-              Workflows That Think out.
+              Self-Healing Workflows.
             </motion.div>
           </h1>
 
@@ -126,10 +126,11 @@ export default function Landing() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.42 }}
-            className="text-[17px] text-text-secondary leading-[1.65] max-w-[520px] mx-auto mb-10"
+            className="text-[17px] text-text-secondary leading-[1.65] max-w-[560px] mx-auto mb-10"
           >
-            TaskPilot turns any meeting transcript into a structured, dependency-aware,
-            self-healing task workflow — powered by Gemini.
+            TaskPilot transforms raw meeting intelligence into autonomous, 
+            dependency-aware command structures. Powering workflows that sense, 
+            think, and self-heal.
           </motion.p>
 
           <motion.div
