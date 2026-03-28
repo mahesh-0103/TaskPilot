@@ -39,9 +39,18 @@ const STEPS = [
   },
 ];
 
+import useAuthStore from '../store/authStore';
+
 export default function Landing() {
   const navigate = useNavigate();
+  const { session, loading } = useAuthStore();
   const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!loading && session) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [session, loading, navigate]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
