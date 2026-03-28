@@ -74,7 +74,8 @@ const useAuthStore = create((set, get) => ({
           queryParams: {
             access_type: 'offline', // Essential for refresh tokens
             prompt: 'consent'       // Force consent to get refresh token every time
-          }
+          },
+          redirectTo: window.location.origin
         }
       });
       if (error) throw error;
