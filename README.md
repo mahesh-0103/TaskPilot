@@ -121,9 +121,4 @@ Configure `.env` with `SUPABASE_URL`, `SUPABASE_KEY`, and LLM API credentials.
 
 ---
 
-### 🤝 Strategic Contributors
-*   [Maheswaran](https://github.com/mahesh-0103) — **Lead Developer & Architect**
-
----
-
 *TaskPilot is not just a task manager — it is a self-operating workflow system powered by Intelligence.*
