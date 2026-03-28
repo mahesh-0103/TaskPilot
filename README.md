@@ -2,32 +2,30 @@
 
 **The Sovereign Executive Layer for Autonomous Workflow Execution.**
 
-TaskPilot is an AI-powered engine that transforms unstructured meeting data into fully executable, self-healing workflow structures. It functions as a digital Chief of Staff, proactively identifying mission-critical objectives and ensuring project continuity through autonomous neural manifesting.
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![React Version](https://img.shields.io/badge/react-18-61DAFB.svg)](https://react.dev/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-orange.svg)](LICENSE.txt)
+[![Follow Me](https://img.shields.io/badge/follow-mahesh--0103-1DA1F2?logo=github)](https://github.com/mahesh-0103)
+
+TaskPilot is an AI-powered command center that transforms raw, unstructured meeting intelligence into a structured, dependency-aware workflow engine. It functions as a digital **Chief of Staff**, utilizing a competitive neural race between multiple LLMs to manifest objectives, assign owners, and project timelines with sub-second latency.
+
+> [!IMPORTANT]
+> TaskPilot is intended for research and educational purposes. Ensure you comply with the terms of use for the Google GenAI and Mistral AI APIs when processing sensitive enterprise data.
+
+> [!TIP]
+> **WANT TO SEE IT IN ACTION? 🤘**
+> Start the backend with `uvicorn main:app` and navigate to `localhost:3000` to access the Sovereign Workspace.
 
 ---
 
-### 🧠 Systems Overview
+### 🏛️ Main Components
 
-TaskPilot converts natural language into structured tasks, assigns dependencies, tracks progress, detects bottlenecks, and autonomously takes corrective actions—including **Orbital Synchronization** via Google Calendar and Gmail.
-
-### ⚙️ Specialized Features
-
-*   **⚡ AI Neural Extraction**: High-bandwidth conversion of meeting transcripts into structured objects (Task, Owner, Deadline, Priority, Dependency).
-*   **♻️ Self-Healing Engine**: Real-time trajectory monitoring. When a bottleneck is detected, TaskPilot autonomously recalibrates dependencies and reassigns priorities to protect the timeline.
-*   **🛰️ Smart Escalation**: Automatic projection of objectives to the cloud. Sends tactical email alerts and creates/updates calendar events for all dependent users.
-*   **📜 Decision Trace Logging**: Full transparency. Every autonomous action is recorded with context, reasoning, and a full audit trail.
-
----
-
-### 🛠️ Technical Architecture
-
-| Component | Technology |
-| :--- | :--- |
-| **Frontend** | React 18, Vite, Tailwind CSS, Framer Motion |
-| **Backend** | FastAPI (Python 3.10+), Pydantic v2 |
-| **Persistence** | Supabase (PostgreSQL, Auth, RLS) |
-| **Intelligence** | Gemini 1.5 Flash & Mistral Large (Competitive Race Strategy) |
-| **Integrations** | Google Calendar API, Gmail API |
+- **Synthesis Engine**: Neural manifestation of objectives from raw text using parallel LLM execution.
+- **Workflow Architect**: Constructs dependency-aware strategic blueprints from extracted tasks.
+- **Telemetry Monitor**: Proactive, real-time tracking of mission-critical deadlines and project status.
+- **Self-Healing Loop**: Autonomous recalibration and reassignment of blocked or delayed objectives.
+- **Orbital Sync**: Seamless projection of tasks to **Google Calendar** and **Gmail** via secure OAuth protocols.
+- **Audit Console**: A complete, traceable decision log of every autonomous action and neural manifestation.
 
 ---
 
@@ -46,79 +44,39 @@ graph TD
 
 ---
 
-### 🧪 Neural Manifesting Example
+### 📦 Installation
 
-**Input:**
-> "John will build the API schema by Thursday. After that, Sarah will implement the REST layer. once the layer is ready, Mike will deploy to staging next week."
+Install the required dependencies for the backend environment:
 
-**Output:**
-```json
-[
-  {
-    "task": "Build API schema",
-    "owner": "John",
-    "deadline": "2026-04-02",
-    "depends_on": []
-  },
-  {
-    "task": "Implement REST layer",
-    "owner": "Sarah",
-    "depends_on": ["task_uuid_1"]
-  }
-]
-```
-
----
-
-### 🚀 API Strategy
-
-| Path | Purpose |
-| :--- | :--- |
-| `/extract-tasks` | Neural manifestation of objectives from raw text |
-| `/create-workflow` | Strategic sequencing and dependency mapping |
-| `/monitor` | Real-time telemetry and delay detection |
-| `/self-heal` | Autonomous recalibration of compromised objectives |
-| `/execute-tasks` | Final state transition and completion logic |
-| `/logs` | Retrieval of the project's audit log |
-
----
-
-### 🔐 Tactical Setup
-
-#### 1. Backend Core
 ```bash
-cd backend
-python -m venv venv
-# Windows: .\venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload
+$ cd backend
+$ pip install -r requirements.txt
 ```
 
-#### 2. Frontend Interface
+Launch the frontend executive layer:
+
 ```bash
-cd frontend
-npm install
-npm run dev -- --port 3000
+$ cd frontend
+$ npm install
+$ npm run dev
 ```
 
-#### 3. Environment Calibration
-Configure `.env` with `SUPABASE_URL`, `SUPABASE_KEY`, and LLM API credentials.
+---
+
+### 🔐 Legal Stuff
+
+TaskPilot is distributed under the Apache Software License. See the `LICENSE.txt` file for more details. 
+
+**AGAIN** - TaskPilot is not affiliated, endorsed, or vetted by Yahoo, Inc. (used for inspiration). It is a standalone, open-source tool. You should refer to the Google API terms of use for details on your rights to use the actual data synchronized.
+
+### 🌟 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=mahesh-0103/TaskPilot&theme=dark)](https://star-history.com/#mahesh-0103/TaskPilot&Date)
+
+### P.S.
+
+Please drop [Maheswaran](https://github.com/mahesh-0103) a note with any feedback you have. Your feedback drives the evolution of our sovereign intelligence.
 
 ---
 
-### 🏆 Hackathon Alignment
-
-**Problem Statement:** Agentic AI for Autonomous Enterprise Workflows
-**The TaskPilot Solution:**
-*   **End-to-End Autonomy**: Zero-human intervention from transcript to execution.
-*   **Self-Correcting Architecture**: Workflows that fix themselves without supervision.
-*   **Real-time Orbital Sync**: Direct integration into existing enterprise tools (Google Suite).
-
-### 🔮 Future Trajectory
-*   **Multi-Agent Orchestration**: Specialized sub-agents for specific domain tasks.
-*   **Slack/Teams Integration**: Interactive signal monitoring directly in-chat.
-*   **Predictive Telemetry**: Anticipating delays before they occur via historical trends.
-
----
-
-*TaskPilot is not just a task manager — it is a self-operating workflow system powered by Intelligence.*
+*TaskPilot • Your Strategic Executive Layer • v1.2.0 • 2026*
