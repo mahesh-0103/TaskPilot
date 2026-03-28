@@ -62,12 +62,13 @@ function AppShell() {
       <Sidebar />
       {/* Content wrapper with fixed sidebar compensation */}
       <main className="flex-1 w-full lg:pl-[280px]">
-        <div className="p-6 sm:p-10 lg:p-16 xl:p-24 max-w-[1600px] mx-auto w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
           <AnimatePresence mode="wait">
             <Outlet />
           </AnimatePresence>
         </div>
       </main>
+      <QuickAddFAB />
       <MobileNav />
     </div>
   );
@@ -92,11 +93,12 @@ export default function App() {
                 style: {
                   background: 'var(--bg-elevated)',
                   color: 'var(--text-primary)',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: '10px',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: '16px',
                   fontSize: '14px',
                   fontFamily: 'Inter, sans-serif',
-                  backdropFilter: 'blur(12px)',
+                  backdropFilter: 'blur(16px)',
+                  boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)',
                 },
                 success: { iconTheme: { primary: 'var(--success)', secondary: 'transparent' } },
                 error: { iconTheme: { primary: 'var(--danger)', secondary: 'transparent' } },

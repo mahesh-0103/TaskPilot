@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ListTodo, User, Calendar, Zap } from 'lucide-react';
 import { Button, Input } from './ui/index.jsx';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../store/authStore';
+import useModalStore from '../store/modalStore';
 import toast from 'react-hot-toast';
 import { clsx } from 'clsx';
 
 export default function QuickAddFAB() {
-  const [open, setOpen] = useState(false);
+  const { isQuickAddOpen, closeQuickAdd, openQuickAdd } = useModalStore();
   const [form, setForm] = useState({ task: '', owner: '', deadline: '', priority: 'medium' });
   const [loading, setLoading] = useState(false);
   const { user } = useAuthStore();
 
   const handleAdd = async () => {
-    if (!form.task.trim()) { toast.error('Task description is required.'); return; }
-    if (!form.deadline) { toast.error('Deadline is required.'); return; }
+    if (!form.task.trim()) { toast.error('Neural instruction required.'); return; }
     setLoading(true);
     try {
       const taskId = crypto.randomUUID();
@@ -24,21 +24,20 @@ export default function QuickAddFAB() {
         task_id: taskId,
         user_id: user.id,
         task: form.task,
-        owner: form.owner || 'unassigned',
+        owner: form.owner || user.email?.split('@')[0],
         deadline: form.deadline,
         priority: form.priority,
         status: 'pending',
-        depends_on: [],
         is_checked: false,
         created_at: now,
         updated_at: now,
       });
       if (error) throw error;
-      toast.success('Task added!');
-      setOpen(false);
+      toast.success('Task established in cluster.');
+      closeQuickAdd();
       setForm({ task: '', owner: '', deadline: '', priority: 'medium' });
     } catch (e) {
-      toast.error(e.message || 'Failed to add task.');
+      toast.error(e.message || 'Transmission failed.');
     } finally {
       setLoading(false);
     }
@@ -46,109 +45,119 @@ export default function QuickAddFAB() {
 
   return (
     <>
-      {/* FAB */}
       <motion.button
         aria-label="Quick add task"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-6 lg:bottom-6 z-40 w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center shadow-lg cursor-pointer"
-        whileHover={{ scale: 1.06 }}
-        whileTap={{ scale: 0.96 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+        onClick={openQuickAdd}
+        className="fixed bottom-20 right-8 lg:bottom-10 lg:right-10 z-[110] w-14 h-14 rounded-2xl bg-accent text-white flex items-center justify-center shadow-2xl shadow-accent/40 cursor-pointer border border-white/20"
+        whileHover={{ scale: 1.1, rotate: 90 }}
+        whileTap={{ scale: 0.9 }}
       >
-        <Plus className="w-5 h-5" />
+        <Plus className="w-6 h-6" />
       </motion.button>
 
-      {/* Modal */}
       <AnimatePresence>
-        {open && (
-          <>
+        {isQuickAddOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
-              onClick={() => setOpen(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-md"
+              onClick={closeQuickAdd}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.97 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[440px] glass-modal p-6"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-[520px] glass-sm overflow-hidden rounded-[40px] border-white/5 bg-background shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)]"
             >
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-[20px] font-semibold text-text-primary">Add Task</h2>
-                <button onClick={() => setOpen(false)} className="text-text-tertiary hover:text-text-primary cursor-pointer">
-                  <X className="w-5 h-5" />
-                </button>
+              <div className="p-10 space-y-8">
+                <header className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <span className="font-mono text-[10px] text-accent tracking-[0.4em] uppercase">Primary // Node</span>
+                    <h2 className="text-[32px] font-display italic text-text-primary tracking-tight">Initialize Task</h2>
+                  </div>
+                  <button onClick={closeQuickAdd} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 transition-colors text-text-tertiary">
+                    <X className="w-5 h-5" />
+                  </button>
+                </header>
+
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                     <p className="text-[12px] font-mono text-text-tertiary uppercase tracking-widest flex items-center gap-2">
+                       <ListTodo className="w-3.5 h-3.5" /> Neural Instruction
+                     </p>
+                     <textarea
+                        autoFocus
+                        rows={3}
+                        value={form.task}
+                        onChange={e => setForm(f => ({ ...f, task: e.target.value }))}
+                        placeholder="Define the objective..."
+                        className="w-full bg-white/[0.03] border border-white/5 rounded-2xl p-4 text-text-primary placeholder:text-text-dim focus:border-accent ring-accent/10 focus:ring-4 outline-none transition-all resize-none text-[15px]"
+                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                     <div className="space-y-3">
+                        <p className="text-[12px] font-mono text-text-tertiary uppercase tracking-widest flex items-center gap-2">
+                          <User className="w-3.5 h-3.5" /> Sector Owner
+                        </p>
+                        <Input 
+                          value={form.owner}
+                          onChange={e => setForm(f => ({ ...f, owner: e.target.value }))}
+                          placeholder="Alias"
+                          className="bg-white/[0.03]"
+                        />
+                     </div>
+                     <div className="space-y-3">
+                        <p className="text-[12px] font-mono text-text-tertiary uppercase tracking-widest flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5" /> Expiration
+                        </p>
+                        <Input 
+                          type="date"
+                          value={form.deadline}
+                          onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))}
+                          className="bg-white/[0.03] [color-scheme:dark]"
+                        />
+                     </div>
+                  </div>
+
+                  <div className="space-y-3">
+                     <p className="text-[12px] font-mono text-text-tertiary uppercase tracking-widest flex items-center gap-2">
+                       <Zap className="w-3.5 h-3.5" /> Priority Class
+                     </p>
+                     <div className="flex gap-2">
+                        {['low', 'medium', 'high'].map(p => (
+                          <button
+                            key={p}
+                            onClick={() => setForm(f => ({ ...f, priority: p }))}
+                            className={clsx(
+                              "flex-1 h-12 rounded-xl font-mono text-[11px] uppercase tracking-widest border transition-all",
+                              form.priority === p 
+                                ? "bg-accent/20 border-accent/50 text-accent font-bold" 
+                                : "bg-white/5 border-white/5 text-text-tertiary hover:bg-white/[0.08]"
+                            )}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                     </div>
+                  </div>
+                </div>
+
+                <Button
+                  variant="accent"
+                  className="w-full h-14 rounded-2xl text-[14px] font-mono font-bold uppercase tracking-[0.2em] shadow-2xl shadow-accent/20"
+                  onClick={handleAdd}
+                  disabled={loading}
+                >
+                  {loading ? 'Initializing...' : 'Establish Node'}
+                </Button>
               </div>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="text-[12px] font-mono text-text-tertiary mb-1 block">Task description *</label>
-                  <textarea
-                    rows={3}
-                    value={form.task}
-                    onChange={e => setForm(f => ({ ...f, task: e.target.value }))}
-                    placeholder="Describe the task in detail..."
-                    className={clsx(
-                      'w-full rounded-lg px-3 py-2.5 resize-none',
-                      'bg-bg-elevated border border-border-default',
-                      'text-text-primary text-[14px] font-ui',
-                      'placeholder:text-text-tertiary focus:border-accent focus:outline-none',
-                      'transition-colors'
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[12px] font-mono text-text-tertiary mb-1 block">Owner</label>
-                    <Input
-                      value={form.owner}
-                      onChange={e => setForm(f => ({ ...f, owner: e.target.value }))}
-                      placeholder="name"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[12px] font-mono text-text-tertiary mb-1 block">Deadline *</label>
-                    <Input
-                      type="date"
-                      value={form.deadline}
-                      onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))}
-                      className="[color-scheme:dark]"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[12px] font-mono text-text-tertiary mb-1 block">Priority</label>
-                  <select
-                    value={form.priority}
-                    onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
-                    className={clsx(
-                      'h-[38px] w-full rounded-lg px-3',
-                      'bg-bg-elevated border border-border-default',
-                      'text-text-primary text-[14px] font-ui outline-none',
-                      'focus:border-accent transition-colors cursor-pointer'
-                    )}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-              </div>
-
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full mt-5"
-                onClick={handleAdd}
-                disabled={loading}
-              >
-                {loading ? 'Adding...' : 'Add Task'}
-              </Button>
+              <div className="h-2 bg-gradient-to-r from-accent/50 via-accent to-accent/50 animate-pulse" />
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
     </>

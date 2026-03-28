@@ -19,13 +19,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(tasks.router, tags=["Task Extraction"])
-app.include_router(workflow.router, tags=["Workflow"])
-app.include_router(monitor.router, tags=["Monitoring"])
-app.include_router(healing.router, tags=["Self-Healing"])
-app.include_router(logs.router, tags=["Audit Logs"])
-app.include_router(execution.router, tags=["Execution"])
-app.include_router(calendar.router, tags=["Calendar & Email"])
+app.include_router(tasks.router, prefix="/tasks", tags=["Task Extraction"])
+app.include_router(workflow.router, prefix="/workflow", tags=["Workflow"])
+app.include_router(monitor.router, prefix="/monitor", tags=["Monitoring"])
+app.include_router(healing.router, prefix="/healing", tags=["Self-Healing"])
+app.include_router(logs.router, prefix="/logs", tags=["Audit Logs"])
+app.include_router(execution.router, prefix="/execution", tags=["Execution"])
+app.include_router(calendar.router, prefix="/calendar", tags=["Calendar & Email"])
 
 
 @app.on_event("startup")

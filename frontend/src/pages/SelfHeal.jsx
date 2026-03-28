@@ -10,6 +10,8 @@ import { Badge, Button, Divider } from '../components/ui/index.jsx';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../store/authStore';
 import useWorkflowStore from '../store/workflowStore';
+import { apiRequest } from '../lib/api';
+import toast from 'react-hot-toast';
 
 export default function SelfHeal() {
   const { user } = useAuthStore();
@@ -24,21 +26,24 @@ export default function SelfHeal() {
 
   const handleSelfHeal = async () => {
     setIsHealing(true);
-    // Simulate healing process
-    setTimeout(async () => {
+    try {
+      // Backend /self-heal applies rules to delayed tasks
+      const res = await apiRequest('/self-heal', { tasks });
+      if (res.healed_tasks?.length > 0) {
+        toast.success(`${res.healed_tasks.length} temporal anomalies corrected.`);
+        loadTasks();
+      } else {
+        toast.success('System is already at peak alignment.');
+      }
+    } catch (e) {
+      toast.error('Phase Shift Failed: ' + e.message);
+    } finally {
       setIsHealing(false);
-      // Log the heal event
-      await supabase.from('logs').insert({
-        user_id: user.id,
-        action: 'Conflict Resolved',
-        reason: 'Scheduling overlap for @Self auto-healed.',
-        decision_trace: 'HEAL-PROTOCOL-SIG-1'
-      });
-    }, 3000);
+    }
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 pb-20 max-w-[1400px] mx-auto">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 pb-20">
       {/* Header */}
       <header className="flex items-center justify-between mb-8">
         <div className="space-y-4">

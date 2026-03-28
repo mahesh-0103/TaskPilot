@@ -28,16 +28,33 @@ const useAuthStore = create((set, get) => ({
   theme: 'dark',
 
   init: async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      set({ session, user: session.user, providerToken: session.provider_token });
-      await get().loadProfile(session.user.id);
+    set({ loading: true });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log("USER:", session.user.id);
+        console.log("TOKEN:", session.provider_token?.slice(0, 10) + "...");
+        set({ 
+          session, 
+          user: session.user, 
+          providerToken: session.provider_token,
+          providerRefreshToken: session.provider_refresh_token 
+        });
+        await get().loadProfile(session.user.id);
+      }
+    } finally {
+      set({ loading: false });
     }
-    set({ loading: false });
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
-      set({ session, user: session?.user ?? null, providerToken: session?.provider_token ?? null });
+      set({ 
+        session, 
+        user: session?.user ?? null, 
+        providerToken: session?.provider_token ?? null,
+        providerRefreshToken: session?.provider_refresh_token ?? null 
+      });
       if (session?.user) {
+        console.log("TOKEN:", session.provider_token?.slice(0, 10) + "...");
         await get().loadProfile(session.user.id);
       } else {
         set({ profile: null });
@@ -46,61 +63,95 @@ const useAuthStore = create((set, get) => ({
     });
   },
 
-  loadProfile: async (userId) => {
+  loginWithGoogle: async () => {
+    set({ loading: true });
     try {
-      const { data } = await supabase
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          scopes: 'email profile https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.send',
+          queryParams: {
+            access_type: 'offline', // Essential for refresh tokens
+            prompt: 'consent'       // Force consent to get refresh token every time
+          }
+        }
+      });
+      if (error) throw error;
+    } catch (e) {
+      console.error('Login error:', e.message);
+      set({ loading: false });
+    }
+  },
+
+  loadProfile: async (userId) => {
+    if (!userId) return;
+    try {
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
+      
+      const user = get().user;
+      const googleAvatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+      const googleName = user?.user_metadata?.full_name || user?.user_metadata?.name;
+
       if (data) {
-        set({ profile: data, accent: data.accent_color || 'blue', theme: data.theme || 'dark' });
+        // Update local state with DB profile, but fallback to Google avatar if DB's is missing
+        const profileWithAvatar = {
+            ...data,
+            avatar_url: data.avatar_url || googleAvatar,
+            display_name: data.display_name || googleName || data.username
+        };
+        set({ 
+          profile: profileWithAvatar, 
+          accent: data.accent_color || 'blue', 
+          theme: data.theme || 'dark' 
+        });
         applyTheme(data.accent_color || 'blue', data.theme || 'dark');
       } else {
-        const user = get().user;
-        if (user) {
-          const newProfile = {
-            id: user.id,
-            username: user.email.split('@')[0] + Math.floor(Math.random() * 1000),
-            display_name: user.user_metadata?.full_name || user.email.split('@')[0],
-            email: user.email,
-            avatar_color: '#2563EB',
-            theme: 'dark',
-            accent_color: 'blue'
-          };
-          await supabase.from('profiles').insert(newProfile);
-          set({ profile: newProfile, accent: 'blue', theme: 'dark' });
-          applyTheme('blue', 'dark');
-        }
+        // If profile doesn't exist in DB yet (trigger might be slow), show Google data
+        set({ 
+          profile: { 
+            id: userId, 
+            display_name: googleName || 'Pilot', 
+            avatar_url: googleAvatar,
+            username: user.email,
+            avatar_color: '#2563EB'
+          } 
+        });
       }
     } catch (e) {
-      console.warn('Profile load failed or empty:', e);
-      // Fallback: silently attempt creation if it was a missing row error
-      const user = get().user;
-      if (user) {
-        try {
-          const newProfile = {
-            id: user.id,
-            username: user.email.split('@')[0] + Math.floor(Math.random() * 1000),
-            display_name: user.user_metadata?.full_name || user.email.split('@')[0],
-            email: user.email,
-            avatar_color: '#2563EB',
-            theme: 'dark',
-            accent_color: 'blue'
-          };
-          await supabase.from('profiles').insert(newProfile);
-          set({ profile: newProfile, accent: 'blue', theme: 'dark' });
-          applyTheme('blue', 'dark');
-        } catch (innerE) {
-          console.warn('Recovery profile creation failed', innerE);
-        }
-      }
+      console.error('Profile Error:', e);
     }
   },
 
-  signOut: async () => {
+  updateProfile: async (updates) => {
+    const userId = get().user?.id;
+    if (!userId) return;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      if (data) {
+        set({ profile: { ...get().profile, ...data } });
+      }
+      return { success: true };
+    } catch (e) {
+      console.error('Update Profile Error:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  signout: async () => {
     await supabase.auth.signOut();
-    set({ session: null, user: null, profile: null, providerToken: null });
+    set({ session: null, user: null, profile: null, providerToken: null, providerRefreshToken: null });
+    applyTheme('blue', 'dark');
   },
 
   setAccent: async (accent) => {

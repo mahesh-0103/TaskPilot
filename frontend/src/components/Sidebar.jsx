@@ -1,107 +1,157 @@
-import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  LayoutDashboard, Sparkles, GitBranch, Activity, 
-  RefreshCw, FileText, Calendar, Bell, Settings,
-  LogOut, User, Zap, Moon, Sun, Monitor
+  LayoutDashboard, 
+  Workflow, 
+  Activity, 
+  Calendar as CalIcon, 
+  History, 
+  Settings as SettingsIcon, 
+  LogOut, 
+  Sparkles,
+  Plus,
+  Palette,
+  Moon,
+  Sun,
+  User,
+  ExternalLink,
+  ChevronRight
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
 import useAuthStore from '../store/authStore';
+import useModalStore from '../store/modalStore';
+import { motion, AnimatePresence } from 'framer-motion';
+import logo from '../assets/logo.png';
 
-const MENU_ITEMS = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/extract', label: 'Extract', icon: Sparkles },
-  { path: '/workflow', label: 'Workflow', icon: GitBranch },
-  { path: '/monitor', label: 'Monitor', icon: Monitor },
-  { path: '/self-heal', label: 'Self-Heal', icon: RefreshCw },
-  { path: '/logs', label: 'Logs', icon: FileText },
-  { path: '/calendar', label: 'Calendar', icon: Calendar },
-  { path: '/notifications', label: 'Notifications', icon: Bell },
-  { path: '/settings', label: 'Settings', icon: Settings },
+const NAV_ITEMS = [
+  { icon: LayoutDashboard, label: 'Control Center', path: '/dashboard' },
+  { icon: Sparkles,        label: 'Extract Data',   path: '/extract' },
+  { icon: Workflow,       label: 'Workflow Grid',  path: '/workflow' },
+  { icon: Activity,       label: 'Live Telemetry', path: '/monitor' },
+  { icon: CalIcon,        label: 'Temporal Sync',  path: '/calendar' },
+  { icon: History,        label: 'Audit Trail',    path: '/logs' },
 ];
 
+const ACCENTS = ['blue', 'slate', 'violet', 'emerald', 'rose', 'amber', 'neutral'];
+
 export default function Sidebar() {
-  const { signOut, user } = useAuthStore();
+  const { signout, user, theme, setTheme, accent, setAccent, profile } = useAuthStore();
+  const { openQuickAdd } = useModalStore();
+  const navigate = useNavigate();
   const location = useLocation();
 
+  const handleSignOut = async () => {
+    await signout();
+    navigate('/');
+  };
+
   return (
-    <aside className="w-[280px] min-h-screen bg-[#060606] border-r border-white/[0.03] flex flex-col p-8 fixed left-0 top-0 overflow-y-auto z-40">
+    <aside className="fixed left-0 top-0 h-screen w-[280px] bg-bg-base border-r border-border-subtle hidden lg:flex flex-col z-50 overflow-hidden">
       {/* Branding */}
-      <div className="mb-14">
-        <h1 className="text-[28px] font-display italic text-text-primary tracking-tight leading-none mb-1">TaskPilot</h1>
-        <p className="font-mono text-[9px] text-text-tertiary tracking-[0.4em] uppercase opacity-70">Sovereign Workspace</p>
+      <div className="p-10 pb-12">
+        <div className="flex items-center gap-3 group cursor-pointer" onClick={() => navigate('/dashboard')}>
+          <div className="w-10 h-10 rounded-2xl bg-accent flex items-center justify-center shadow-lg shadow-accent/20 group-hover:scale-110 transition-transform overflow-hidden p-1.5">
+             <img src={logo} alt="TaskPilot Logo" className="w-full h-full object-contain filter brightness-0 invert" />
+          </div>
+          <div>
+            <h1 className="text-[20px] font-display italic text-text-primary tracking-tight">TaskPilot</h1>
+            <p className="text-[10px] font-mono text-text-tertiary tracking-widest uppercase mt-0.5 whitespace-nowrap">Workflows That Think</p>
+          </div>
+        </div>
       </div>
 
-      {/* Primary Navigation */}
-      <nav className="flex-1 space-y-2">
-        {MENU_ITEMS.map((item) => (
+      {/* Main Nav */}
+      <nav className="flex-1 px-6 space-y-2">
+        {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) => clsx(
-              'group flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 relative overflow-hidden',
-              isActive 
-                ? 'bg-accent/10 text-accent font-semibold' 
-                : 'text-text-tertiary hover:bg-white/[0.04] hover:text-text-primary'
+              "flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all group",
+              isActive ? "bg-accent/10 text-accent font-bold" : "text-text-tertiary hover:text-text-primary hover:bg-bg-elevated/50"
             )}
           >
-            {({ isActive }) => (
-              <>
-                <item.icon className={clsx(
-                  'w-5 h-5 transition-transform duration-500 group-hover:scale-110', 
-                  isActive ? 'text-accent' : 'text-text-dim'
-                )} />
-                <span className="text-[14px] font-ui tracking-tight">{item.label}</span>
-                {isActive && (
-                   <motion.div 
-                     layoutId="active-pill" 
-                     className="absolute left-0 w-1 h-6 bg-accent rounded-full"
-                   />
-                )}
-              </>
+            <div className="flex items-center gap-4">
+              <item.icon className={clsx("w-5 h-5", location.pathname === item.path ? "text-accent" : "text-text-tertiary opacity-40 group-hover:opacity-100 group-hover:text-text-secondary")} />
+              <span className="text-[15px] font-medium tracking-tight">{item.label}</span>
+            </div>
+            {location.pathname === item.path && (
+               <motion.div layoutId="active-nav" className="w-1.5 h-1.5 rounded-full bg-accent shadow-lg shadow-accent/50" />
             )}
           </NavLink>
         ))}
-      </nav>
 
-      {/* Theme & Accents Selection Placeholder */}
-      <div className="pt-10 space-y-8">
-        <div className="space-y-4">
-           <div className="flex items-center gap-3 text-text-tertiary group cursor-pointer hover:text-text-primary transition-colors">
-              <Moon className="w-5 h-5" />
-              <span className="text-[14px] font-ui tracking-tight">Theme</span>
-           </div>
-           <div className="flex items-center gap-3 text-text-tertiary group cursor-pointer hover:text-text-primary transition-colors">
-              <Zap className="w-5 h-5" />
-              <span className="text-[14px] font-ui tracking-tight">Accents</span>
-           </div>
-        </div>
-
-        {/* Profile / Signature Section */}
-        <div className="pt-8 border-t border-white/[0.04] flex items-center justify-between group">
-           <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-white/[0.03] ring-1 ring-white/5 flex items-center justify-center overflow-hidden">
-                {user?.user_metadata?.avatar_url ? (
-                  <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-5 h-5 text-text-tertiary" />
-                )}
-              </div>
-              <div className="space-y-0.5">
-                 <p className="text-[13px] font-ui font-semibold text-text-primary truncate max-w-[120px]">
-                   {user?.user_metadata?.username || 'Executive'}
-                 </p>
-                 <p className="text-[10px] font-mono text-text-dim uppercase tracking-widest">Active_Node</p>
-              </div>
-           </div>
+        <div className="pt-8 px-5">
            <button 
-             onClick={signOut}
-             className="w-8 h-8 rounded-xl bg-white/[0.02] hover:bg-danger/10 hover:text-danger text-text-tertiary flex items-center justify-center transition-all"
+             onClick={openQuickAdd}
+             className="w-full h-14 rounded-2xl bg-accent text-white flex items-center justify-center gap-3 shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all group"
            >
-              <LogOut className="w-4 h-4" />
+             <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
+                <Plus className="w-4 h-4" />
+             </div>
+             <span className="font-mono text-[11px] uppercase tracking-[0.2em] font-bold">Quick Add</span>
            </button>
         </div>
+      </nav>
+
+      {/* Contextual Utility */}
+      <div className="px-10 py-8 space-y-6">
+         <div className="space-y-4">
+            <div className="flex items-center justify-between">
+               <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-widest">Interface</span>
+               <button 
+                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                 className="p-2 rounded-xl bg-bg-surface border border-border-subtle text-text-secondary hover:text-accent transition-colors shadow-sm"
+               >
+                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+               </button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+               {ACCENTS.map(a => (
+                 <button 
+                   key={a}
+                   onClick={() => setAccent(a)}
+                   className={clsx(
+                     "w-1 h-3 rounded-full transition-all",
+                     accent === a ? "bg-accent scale-y-150" : "bg-text-tertiary/20 hover:bg-text-tertiary/40"
+                   )}
+                 />
+               ))}
+            </div>
+         </div>
+      </div>
+
+      {/* User Footer */}
+      <div className="p-8 mt-auto border-t border-border-subtle bg-bg-surface/5">
+         <div className="flex items-center gap-4 group cursor-pointer" onClick={() => navigate('/settings')}>
+            <div className="relative">
+              <div 
+                className="w-11 h-11 rounded-[14px] bg-accent/20 flex items-center justify-center text-accent text-[14px] font-display italic ring-1 ring-border-default shadow-lg overflow-hidden"
+              >
+                 {profile?.avatar_url ? (
+                   <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                 ) : (
+                   <span style={{ color: profile?.avatar_color || 'white' }}>
+                    {(profile?.display_name || profile?.username || 'P').slice(0, 1).toUpperCase()}
+                   </span>
+                 )}
+              </div>
+              <div className={clsx("absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-[3px] border-bg-base", profile ? "bg-success" : "bg-text-tertiary")} />
+            </div>
+            <div className="flex-1 min-w-0">
+               <h4 className="text-[14px] font-semibold text-text-primary truncate">{profile?.display_name || profile?.username || 'Syncing...'}</h4>
+               <p className="text-[11px] font-mono text-text-tertiary uppercase tracking-tighter truncate opacity-60">{user?.email || 'Unauthorized'}</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-text-tertiary group-hover:text-accent group-hover:translate-x-1 transition-all" />
+         </div>
+
+         <button 
+           onClick={handleSignOut}
+           className="w-full mt-6 flex items-center gap-3 px-4 py-3 rounded-xl text-text-tertiary hover:text-danger hover:bg-danger/5 transition-all text-[13px] font-medium group"
+         >
+           <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+           <span>Deauthorize Session</span>
+         </button>
       </div>
     </aside>
   );

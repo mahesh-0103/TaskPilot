@@ -22,29 +22,49 @@ from services.model_service import model_service
 
 
 def _parse_deadline(token: str) -> str:
-    """Parse a simple deadline token. Accept ISO date or weekday names; otherwise return empty."""
-    token = token.strip().strip(".,")
-    # ISO date
+    """Parse a simple deadline token. Accept ISO date, weekday names, or Month Day formats."""
+    token = token.strip().strip(".,").lower()
+    if not token:
+        return ""
+
+    # 1. ISO date: YYYY-MM-DD
     if re.match(r"^\d{4}-\d{2}-\d{2}$", token):
         return token
 
-    # Weekday name -> next occurrence
-    weekdays = {
-        "monday": 0,
-        "tuesday": 1,
-        "wednesday": 2,
-        "thursday": 3,
-        "friday": 4,
-        "saturday": 5,
-        "sunday": 6,
-    }
-    key = token.lower()
-    if key in weekdays:
+    # 2. Weekday names
+    weekdays = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
+    if token in weekdays:
         today = datetime.utcnow().date()
-        target = weekdays[key]
+        target = weekdays[token]
         days_ahead = (target - today.weekday() + 7) % 7
-        days_ahead = days_ahead or 7
+        if days_ahead == 0: days_ahead = 7
         return (today + timedelta(days=days_ahead)).isoformat()
+
+    # 3. Month Day patterns: "Dec 12", "12 Dec", "December 12"
+    month_map = {
+        "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
+        "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7,
+        "aug": 8, "august": 8, "sep": 9, "september": 9, "oct": 10, "october": 10,
+        "nov": 11, "november": 11, "dec": 12, "december": 12
+    }
+
+    # Extract month and day using regex
+    m = re.search(r"([a-z]{3,})\s+(\d{1,2})|(\d{1,2})\s+([a-z]{3,})", token)
+    if m:
+        month_str = m.group(1) or m.group(4)
+        day_str = m.group(2) or m.group(3)
+        if month_str in month_map:
+            month = month_map[month_str]
+            day = int(day_str)
+            year = datetime.utcnow().year
+            try:
+                # If the date has already passed this year, assume next year
+                target_date = datetime(year, month, day).date()
+                if target_date < datetime.utcnow().date():
+                    target_date = datetime(year + 1, month, day).date()
+                return target_date.isoformat()
+            except ValueError:
+                return ""
 
     return ""
 
@@ -81,12 +101,9 @@ def _rule_extract(text: str) -> List[dict]:
 
         # Parse deadline
         m_dl = re.search(r"\bby\s+([A-Za-z0-9\-]+)", s_clean, flags=re.IGNORECASE)
-        # ... fallback
-        dl_str = m_dl.group(1) if m_dl else "tomorrow"
-        # Fix the NaNd by putting a real ISO date
-        deadline = _parse_deadline(dl_str)
-        if not deadline:
-            deadline = (datetime.utcnow().date() + timedelta(days=1)).isoformat()
+        # Use empty if not found
+        dl_str = m_dl.group(1) if m_dl else ""
+        deadline = _parse_deadline(dl_str) if dl_str else ""
 
         # Priority
         pri = "medium"
@@ -129,9 +146,11 @@ def _normalise_task(raw: dict) -> Task:
         task=raw.get("task", "Unnamed task"),
         owner=raw.get("owner") or "unassigned",
         deadline=deadline,
+        due_time=raw.get("due_time", "09:00"),
         priority=raw.get("priority", "medium") if raw.get("priority") in ("low", "medium", "high") else "medium",
         status=raw.get("status") or "pending",
         depends_on=raw.get("depends_on") or [],
+        notification_emails=raw.get("notification_emails") or [],
         created_at=raw.get("created_at", ts),
         updated_at=raw.get("updated_at", ts),
     )

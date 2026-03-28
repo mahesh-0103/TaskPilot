@@ -148,6 +148,16 @@ html.light {
     box-shadow: 0 2px 12px rgba(0,0,0,0.10);
   }
 
+  aside {
+    background-color: var(--bg-surface) !important;
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  html.light aside {
+    background-color: #FFFFFF !important;
+    border-right: 1px solid rgba(0,0,0,0.06);
+  }
+
   .glass-modal {
     background: var(--bg-elevated);
     backdrop-filter: blur(32px) saturate(1.8);
@@ -173,7 +183,8 @@ html.light {
   /* Geist font fallback using Inter */
   .font-mono {
     font-family: 'Geist Mono', 'JetBrains Mono', 'Courier New', monospace;
-    font-size: 0.875rem;
+    font-size: 0.95rem;
+    font-weight: 500;
   }
 }
 

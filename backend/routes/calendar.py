@@ -14,50 +14,52 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class PushTaskRequest(BaseModel):
+class CreateEventRequest(BaseModel):
     task_id: str
-    access_token: str
-
+    user_id: str
+    summary: str
+    description: str
+    start_time: str
+    end_time: str
 
 class SendReminderRequest(BaseModel):
     task_id: str
-    access_token: str
+    user_id: str
     email: str
+    token: Optional[str] = None
 
-
-@router.post("/calendar/push-task")
-def push_task_to_calendar(body: PushTaskRequest):
+@router.post("/create-event")
+def create_event(body: CreateEventRequest, token: Optional[str] = None):
     """
     Push a task as a Google Calendar event.
-    Requires a valid Google OAuth2 access_token with calendar.events scope.
+    Requires a valid Google OAuth2 token.
     """
-    task = db.get_task_by_id(body.task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail=f"Task {body.task_id} not found.")
+    # The frontend apiRequest sends token in the body, which FastAPI might not map
+    # automatically if it's not in the model. We'll check both.
+    actual_token = token
+    # Extract from body manually if needed or expect it in the query
+    if not actual_token:
+         raise HTTPException(status_code=401, detail="Google Access Token required.")
 
     try:
         import httpx
 
+        # Use the richer body provided by the frontend
         event_body = {
-            "summary": task.get("task", "TaskPilot Task"),
-            "description": (
-                f"Owner: {task.get('owner', 'unassigned')}\n"
-                f"Priority: {task.get('priority', 'medium')}\n"
-                f"Status: {task.get('status', 'pending')}\n"
-                f"Task ID: {task.get('task_id', '')}"
-            ),
+            "summary": body.summary,
+            "description": body.description,
             "start": {
-                "date": task.get("deadline", ""),
+                "dateTime": body.start_time,
                 "timeZone": "UTC",
             },
             "end": {
-                "date": task.get("deadline", ""),
+                "dateTime": body.end_time,
                 "timeZone": "UTC",
             },
         }
 
         headers = {
-            "Authorization": f"Bearer {body.access_token}",
+            "Authorization": f"Bearer {actual_token}",
             "Content-Type": "application/json",
         }
 
@@ -71,16 +73,16 @@ def push_task_to_calendar(body: PushTaskRequest):
         if resp.status_code not in (200, 201):
             raise HTTPException(
                 status_code=resp.status_code,
-                detail=f"Google Calendar API error: {resp.text}"
+                detail=f"Google API Error: {resp.text}"
             )
 
         event_data = resp.json()
         event_id = event_data.get("id", "")
 
         # Update task with calendar_event_id
-        db.update_task(body.task_id, {"calendar_event_id": event_id}, user_id=task.get("user_id"))
+        db.update_task(body.task_id, {"calendar_event_id": event_id}, user_id=body.user_id)
 
-        return {"event_id": event_id, "message": "Event created in Google Calendar."}
+        return {"event_id": event_id, "message": "Objective Synchronized to Google Calendar."}
 
     except HTTPException:
         raise
@@ -90,11 +92,15 @@ def push_task_to_calendar(body: PushTaskRequest):
 
 
 @router.post("/send-reminder")
-def send_reminder(body: SendReminderRequest):
+def send_reminder(body: SendReminderRequest, token: Optional[str] = None):
     """
     Send a Gmail reminder for a task.
     Requires a valid Google OAuth2 access_token with gmail.send scope.
     """
+    actual_token = token or body.token
+    if not actual_token:
+        raise HTTPException(status_code=401, detail="Google Access Token required.")
+
     task = db.get_task_by_id(body.task_id)
     if not task:
         raise HTTPException(status_code=404, detail=f"Task {body.task_id} not found.")
@@ -126,7 +132,7 @@ def send_reminder(body: SendReminderRequest):
         raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 
         headers = {
-            "Authorization": f"Bearer {body.access_token}",
+            "Authorization": f"Bearer {actual_token}",
             "Content-Type": "application/json",
         }
 
@@ -150,3 +156,48 @@ def send_reminder(body: SendReminderRequest):
     except Exception as e:
         logger.error(f"Send reminder failed: {e}")
         raise HTTPException(status_code=500, detail=f"Send reminder failed: {e}")
+@router.post("/sync-tasks")
+def sync_tasks(body: dict, token: Optional[str] = None):
+    """
+    Push multiple tasks to Google Calendar at once.
+    """
+    actual_token = token or body.get("token")
+    if not actual_token:
+         raise HTTPException(status_code=401, detail="Google Access Token required.")
+    
+    tasks = body.get("tasks", [])
+    results = []
+    
+    for task in tasks:
+        try:
+            summary = task.get("task", "TaskPilot Directive")
+            desc = f"Owner: {task.get('owner')}\nPriority: {task.get('priority')}\n\nAutomated by TaskPilot."
+            deadline = task.get("deadline")
+            due_time = task.get("due_time", "09:00")
+            
+            if not deadline or deadline == "unknown":
+                continue
+                
+            start_str = f"{deadline.split('T')[0]}T{due_time}:00Z"
+            end_str = f"{deadline.split('T')[0]}T{int(due_time.split(':')[0])+1:02d}:00:00Z"
+
+            import httpx
+            event_body = {
+                "summary": summary,
+                "description": desc,
+                "start": {"dateTime": start_str, "timeZone": "UTC"},
+                "end": {"dateTime": end_str, "timeZone": "UTC"},
+            }
+            
+            resp = httpx.post(
+                "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                json=event_body,
+                headers={"Authorization": f"Bearer {actual_token}"},
+                timeout=10
+            )
+            if resp.status_code in (200, 201):
+                results.append(task.get("task_id"))
+        except:
+             continue
+             
+    return {"synchronized": results, "count": len(results)}

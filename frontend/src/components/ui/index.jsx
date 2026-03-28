@@ -18,6 +18,7 @@ export function Button({
 
   const variants = {
     primary: 'bg-accent text-white hover:brightness-110',
+    accent: 'bg-accent text-white hover:brightness-110 shadow-lg shadow-accent/20',
     secondary: 'bg-bg-elevated border border-border-default text-text-primary hover:bg-bg-elevated hover:border-border-strong',
     ghost: 'bg-transparent text-text-secondary hover:bg-bg-elevated hover:text-text-primary',
     danger: 'bg-danger-subtle text-danger hover:bg-danger-subtle border border-border-default',

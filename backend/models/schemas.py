@@ -9,9 +9,11 @@ class Task(BaseModel):
     task: str
     owner: str
     deadline: str                           # ISO date string YYYY-MM-DD
+    due_time: str = "09:00"                 # 24h format HH:MM
     priority: Literal["low", "medium", "high"]
     status: Literal["pending", "completed", "delayed"]   # DB constraint; healed → pending
     depends_on: List[str] = Field(default_factory=list)
+    notification_emails: List[str] = Field(default_factory=list)
     is_checked: bool = False
     calendar_event_id: Optional[str] = None
     created_at: str = ""                   # ISO datetime string

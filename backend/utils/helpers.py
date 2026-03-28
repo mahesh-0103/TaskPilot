@@ -16,12 +16,14 @@ def extend_deadline(deadline_iso: str, days: int = 1) -> str:
     """
     Add `days` to an ISO-format date/datetime string.
     Returns the new date as an ISO-format string.
-    If date is malformed or empty, default to UTC-now +1 day.
+    If empty, returns empty.
+    If malformed, returns first 10 chars of now + 1 day.
     """
     from datetime import date
+    if not deadline_iso or deadline_iso == "NaN-NaN-NaN":
+        return ""
+        
     try:
-        if not deadline_iso:
-            raise ValueError("Empty deadline")
         # Try full datetime first
         dt = datetime.fromisoformat(deadline_iso)
         return (dt + timedelta(days=days)).isoformat()
@@ -31,5 +33,5 @@ def extend_deadline(deadline_iso: str, days: int = 1) -> str:
             d = date.fromisoformat(deadline_iso)
             return (d + timedelta(days=days)).isoformat()
         except Exception:
-            # Fallback to UTC-now + 1 day
+            # Only default if it was supposed to be a date but failed parsing
             return (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()[:10]

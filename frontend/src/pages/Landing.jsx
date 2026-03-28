@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import {
   FileText, Sparkles, GitBranch, Activity, RefreshCw, ScrollText
 } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 const STEPS = [
   {
@@ -61,6 +62,9 @@ export default function Landing() {
       >
         <div className="max-w-[1160px] mx-auto w-full px-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center p-1 shadow-lg shadow-accent/20">
+               <img src={logo} alt="TaskPilot Logo" className="w-full h-full object-contain brightness-0 invert" />
+            </div>
             <span className="text-[17px] font-semibold text-text-primary tracking-tight font-display italic">TaskPilot</span>
           </div>
           <div className="flex items-center gap-3">
@@ -105,7 +109,7 @@ export default function Landing() {
               transition={{ delay: 0.27 }}
               style={{ fontSize: 'clamp(34px, 5vw, 52px)' }}
             >
-              Executed workflows out.
+              Workflows That Think out.
             </motion.div>
           </h1>
 
@@ -200,7 +204,7 @@ export default function Landing() {
               <div className="w-2.5 h-2.5 rounded-full bg-[#28CA41]" />
               <div className="flex-1 mx-4">
                 <div className="bg-bg-elevated rounded-md px-3 py-1 max-w-[220px] mx-auto">
-                  <span className="font-mono text-[12px] text-text-tertiary">app.taskpilot.io/dashboard</span>
+                   <span className="font-mono text-[12px] text-text-tertiary">app.taskpilot.io/dashboard</span>
                 </div>
               </div>
             </div>
@@ -242,7 +246,7 @@ export default function Landing() {
       <footer className="border-t border-border-subtle py-10">
         <div className="max-w-[1160px] mx-auto px-6 text-center">
           <p className="text-[13px] text-text-tertiary">
-            TaskPilot · Built for Economic Times Hackathon 2025
+            TaskPilot · © 2026 All Rights Reserved
           </p>
         </div>
       </footer>
