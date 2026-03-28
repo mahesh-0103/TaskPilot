@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # --- MD5 Cache ---
 _cache: dict = {}
 _cache_lock = threading.Lock()
-CACHE_TTL = 60  # seconds
+CACHE_TTL = 300  # Extended to 300s (5m) for better stability
 
 
 def _cache_get(key: str) -> Optional[list]:
@@ -40,29 +40,33 @@ def _md5(text: str) -> str:
     return hashlib.md5(text.encode()).hexdigest()
 
 
-# --- T5 Singleton (kept for fallback) ---
+# --- Client Singletons ---
 _t5_pipeline = None
-_t5_lock = threading.Lock()
+_gemini_client = None
+_locks = {"t5": threading.Lock(), "gemini": threading.Lock()}
 
+def get_gemini_client():
+    global _gemini_client
+    from settings import settings
+    if _gemini_client is None:
+        with _locks["gemini"]:
+            if _gemini_client is None and settings.GOOGLE_API_KEY:
+                from google import genai
+                logger.info("Initializing persistent Gemini 1.5 Flash client...")
+                _gemini_client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+    return _gemini_client
 
 def get_t5():
     global _t5_pipeline
     if _t5_pipeline is None:
-        with _t5_lock:
+        with _locks["t5"]:
             if _t5_pipeline is None:
                 try:
-                    from transformers import pipeline  # type: ignore
-                    logger.info("Initializing T5 Pipeline (google/flan-t5-base)...")
-                    _t5_pipeline = pipeline(
-                        "text2text-generation",
-                        model="google/flan-t5-base",
-                        max_length=512,
-                        do_sample=False
-                    )
-                    logger.info("T5 Pipeline loaded successfully.")
+                    from transformers import pipeline
+                    logger.info("Initializing T5 Pipeline...")
+                    _t5_pipeline = pipeline("text2text-generation", model="google/flan-t5-base")
                 except Exception as e:
-                    logger.error(f"Failed to load T5 Pipeline: {e}")
-                    raise e
+                    logger.error(f"Failed to load T5: {e}")
     return _t5_pipeline
 
 
@@ -73,17 +77,17 @@ class ModelService:
         if cached is not None:
             return cached
 
-        # Try Mistral first
-        mistral_tasks = self.predict_tasks_mistral(text)
-        if mistral_tasks:
-            _cache_set(cache_key, mistral_tasks)
-            return mistral_tasks
-
-        # Fallback to Gemini
+        # Prioritize Gemini 1.5 Flash (Farthest/Lowest Latency)
         gemini_tasks = self.predict_tasks_gemini(text)
         if gemini_tasks:
             _cache_set(cache_key, gemini_tasks)
             return gemini_tasks
+
+        # Secondary: Mistral (Reliable but potentially slower)
+        mistral_tasks = self.predict_tasks_mistral(text)
+        if mistral_tasks:
+            _cache_set(cache_key, mistral_tasks)
+            return mistral_tasks
 
         logger.warning("All LLM extraction attempts failed.")
         return []
@@ -141,74 +145,39 @@ class ModelService:
         today = datetime.date.today().isoformat()
         system_instruction = (
             "You extract action items from meeting transcripts.\n"
-            "Return ONLY a raw JSON array. No markdown. No explanation.\n"
-            "No code fences. Start with [ end with ].\n\n"
-            "CRITICAL RULES:\n"
-            "1. The task field must be a COMPLETE action sentence minimum\n"
-            "   8 words describing exactly what needs to be done.\n"
-            f"3. Infer deadlines from context relative to today: {today}\n"
-            "Each object must have exactly:\n"
-            "task_id (uuid4), task (full action sentence), owner (first name),\n"
-            "deadline (YYYY-MM-DD), priority (low|medium|high),\n"
-            "status (pending), depends_on ([]), created_at (ISO UTC now),\n"
-            "updated_at (ISO UTC now)"
+            "Return ONLY a raw JSON array. Start with [ end with ].\n"
+            "Each object must have exactly: task_id(uuid4), task(full action sentence), owner, deadline, priority."
         )
 
-        # Retry with exponential backoff
-        max_retries = 2
-        last_error = None
-        for attempt in range(max_retries):
+        client = get_gemini_client()
+        if not client:
+            return []
+
+        # Reduce retries for live latency reduction
+        max_retries = 1
+        for attempt in range(max_retries + 1):
             try:
-                from google import genai
                 from google.genai import types
-                from settings import settings
-
-                if not settings.GOOGLE_API_KEY or len(settings.GOOGLE_API_KEY) < 10:
-                    break
-
-                logger.info(f"Gemini extraction attempt {attempt + 1}...")
-                client = genai.Client(api_key=settings.GOOGLE_API_KEY)
-
+                logger.info(f"Gemini 1.5 Flash extraction signal (Attempt {attempt + 1})...")
+                
                 response = client.models.generate_content(
                     model="gemini-1.5-flash",
-                    contents=[
-                        types.Content(
-                            role="user",
-                            parts=[types.Part.from_text(text=f"Meeting transcript:\n{text}")]
-                        )
-                    ],
+                    contents=[f"Meeting transcript:\n{text}"],
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
-                        temperature=0.2,
-                        max_output_tokens=2048,
+                        temperature=0.1,
+                        max_output_tokens=1024,
+                        response_mime_type="application/json"
                     )
                 )
 
-                raw_text = response.text
-                match = re.search(r"\[.*\]", raw_text, re.DOTALL)
-                if match:
-                    return json.loads(match.group(0))
-                else:
-                    raise ValueError("JSON array not found in Gemini output")
-
+                content = response.text or response.candidates[0].content.parts[0].text
+                data = json.loads(content)
+                if isinstance(data, list): return data
+                if isinstance(data, dict) and "tasks" in data: return data["tasks"]
             except Exception as e:
-                last_error = e
-                err_str = str(e)
-                if "429" in err_str or "quota" in err_str.lower():
-                    if attempt < max_retries - 1:
-                        wait = 2 ** attempt
-                        logger.warning(f"Gemini 429 quota hit, waiting {wait}s...")
-                        time.sleep(wait)
-                    else:
-                        break
-                elif "400" in err_str or "key" in err_str.lower():
-                    break
-                else:
-                    if attempt >= max_retries - 1:
-                        break
-                    time.sleep(2 ** attempt)
-
-        logger.warning(f"Gemini failed. Last error: {last_error}")
+                logger.warning(f"Gemini attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries: time.sleep(1)
         return []
 
         try:
