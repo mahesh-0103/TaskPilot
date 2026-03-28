@@ -70,6 +70,7 @@ export default function TaskDetailPanel({ task, onClose }) {
         end_time: end,
         token: providerToken
       });
+      await loadTasks();
       toast.success('Orbit Synchronized with Google Calendar');
     } catch (e) {
       toast.error('Sync Intercepted: ' + e.message);

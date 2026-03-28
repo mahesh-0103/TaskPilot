@@ -17,8 +17,8 @@ import useModalStore from '../store/modalStore';
 import TaskDetailPanel from '../components/TaskDetailPanel.jsx';
 
 export default function Dashboard() {
-  const { user, profile } = useAuthStore();
-  const { tasks, loadTasks } = useWorkflowStore();
+  const { user, profile, providerToken } = useAuthStore();
+  const { tasks = [], loadTasks } = useWorkflowStore();
   const { openQuickAdd } = useModalStore();
   const [selectedTask, setSelectedTask] = useState(null);
   const [logs, setLogs] = useState([]);

@@ -20,8 +20,11 @@ export default function SelfHeal() {
   const [delayed, setDelayed] = useState([]);
 
   useEffect(() => {
-    loadTasks();
-    setDelayed(tasks.filter(t => t.status === 'delayed').slice(0, 3));
+    if (user?.id) loadTasks(user.id);
+  }, [user]);
+
+  useEffect(() => {
+    setDelayed((tasks || []).filter(t => t.status === 'delayed').slice(0, 3));
   }, [tasks]);
 
   const handleSelfHeal = async () => {

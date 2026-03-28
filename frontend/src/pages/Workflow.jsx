@@ -58,8 +58,15 @@ export default function Workflow() {
 
   const handleSyncCalendar = async (task) => {
     try {
-      const startStr = `${task.deadline}T${task.due_time || '09:00'}:00Z`;
-      const end = new Date(new Date(startStr).getTime() + 3600000).toISOString();
+      const datePart = task.deadline ? task.deadline.split('T')[0] : new Date().toISOString().split('T')[0];
+      const timePart = task.due_time || '09:00';
+      const startStr = `${datePart}T${timePart}:00Z`;
+      
+      const d = new Date(startStr);
+      if (isNaN(d.getTime())) {
+        throw new Error('Neural date format is corrupt. Please re-assign.');
+      }
+      const end = new Date(d.getTime() + 3600000).toISOString();
       
       await apiRequest('/calendar/create-event', {
         task_id: task.task_id,
@@ -70,7 +77,8 @@ export default function Workflow() {
         end_time: end,
         token: providerToken
       });
-      toast.success('Synchronized to Cloud Calendar');
+      await loadTasks();
+      toast.success('Orbit Synchronized with Google Calendar');
     } catch (e) {
       toast.error('Calendar Sync Failed: ' + e.message);
     }
@@ -89,7 +97,7 @@ export default function Workflow() {
      }
   };
 
-  const nodes = useMemo(() => tasks.map((t, i) => ({
+  const nodes = useMemo(() => (tasks || []).map((t, i) => ({
     id: t.task_id,
     data: { label: t.task },
     position: { x: 250 * (i % 3), y: 150 * Math.floor(i / 3) },
@@ -151,7 +159,7 @@ export default function Workflow() {
         <div className={clsx("flex-1 transition-all duration-500", actualSelectedTask ? "lg:w-[60%]" : "w-full")}>
           {view === 'grid' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {tasks.map(t => (
+              {(tasks || []).map(t => (
                 <motion.div 
                   key={t.task_id}
                   layout
@@ -228,7 +236,7 @@ export default function Workflow() {
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-white/5">
-                     {tasks.map(t => (
+                     {(tasks || []).map(t => (
                        <tr 
                         key={t.task_id} 
                         className={clsx(

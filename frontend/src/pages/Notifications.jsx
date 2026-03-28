@@ -22,7 +22,14 @@ export default function Notifications() {
   });
 
   const clearAll = async () => {
-    toast.success('Communication buffer cleared.');
+    if (!user) return;
+    const { error } = await supabase.from('logs').delete().eq('user_id', user.id);
+    if (error) {
+      toast.error('Failed to clear buffer.');
+    } else {
+      toast.success('Communication buffer cleared.');
+      refetch();
+    }
   };
 
   return (
@@ -53,7 +60,7 @@ export default function Notifications() {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              key={n.id}
+              key={n.log_id || i}
               className="glass-sm p-6 rounded-[28px] border-white/5 flex items-start gap-6 group hover:bg-white/[0.02] transition-colors"
             >
               <div className={clsx(
@@ -68,7 +75,7 @@ export default function Notifications() {
                  <div className="flex items-center justify-between">
                     <h3 className="text-[17px] font-medium text-text-primary group-hover:text-accent transition-colors">{n.action}</h3>
                     <span className="text-[11px] font-mono text-text-tertiary uppercase tabular-nums">
-                      {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {n.timestamp ? new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                     </span>
                  </div>
                  <p className="text-[14px] text-text-tertiary leading-relaxed max-w-2xl">{n.details || 'System message received.'}</p>

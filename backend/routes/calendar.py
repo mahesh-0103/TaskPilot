@@ -21,6 +21,7 @@ class CreateEventRequest(BaseModel):
     description: str
     start_time: str
     end_time: str
+    token: Optional[str] = None
 
 class SendReminderRequest(BaseModel):
     task_id: str
@@ -36,8 +37,7 @@ def create_event(body: CreateEventRequest, token: Optional[str] = None):
     """
     # The frontend apiRequest sends token in the body, which FastAPI might not map
     # automatically if it's not in the model. We'll check both.
-    actual_token = token
-    # Extract from body manually if needed or expect it in the query
+    actual_token = token or body.token
     if not actual_token:
          raise HTTPException(status_code=401, detail="Google Access Token required.")
 

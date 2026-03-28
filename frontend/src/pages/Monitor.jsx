@@ -18,10 +18,10 @@ export default function Monitor() {
   ]);
 
   const stats = useMemo(() => {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.status === 'completed').length;
-    const delayed = tasks.filter(t => t.status === 'delayed').length;
-    const pending = tasks.filter(t => t.status === 'pending').length;
+    const total = (tasks || []).length;
+    const completed = (tasks || []).filter(t => t.status === 'completed').length;
+    const delayed = (tasks || []).filter(t => t.status === 'delayed').length;
+    const pending = (tasks || []).filter(t => t.status === 'pending').length;
     const healthy = total > 0 ? ((completed + pending) / total * 100).toFixed(1) : 100;
 
     return { total, completed, delayed, pending, healthy };
@@ -52,7 +52,7 @@ export default function Monitor() {
     const timer = setInterval(() => {
       setJitter(prev => ({
         load: Math.max(8, Math.min(45, prev.load + (Math.random() - 0.5) * 6)).toFixed(0),
-        ram: (2.4 + (tasks.length * 0.1) + (Math.random() * 0.2)).toFixed(1),
+        ram: (2.4 + ((tasks?.length || 0) * 0.1) + (Math.random() * 0.2)).toFixed(1),
         iops: Math.floor(8200 + Math.random() * 400)
       }));
       

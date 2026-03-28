@@ -31,7 +31,7 @@ export default function Logs() {
     enabled: !!user,
   });
 
-  const filtered = logs.filter(l => {
+  const filtered = (logs || []).filter(l => {
     const matchFilter = filter === 'All' || l.action?.toLowerCase().includes(filter.toLowerCase());
     const matchSearch = !search || 
       l.action?.toLowerCase().includes(search.toLowerCase()) || 
@@ -107,7 +107,7 @@ export default function Logs() {
 
       {/* Feed */}
       <div className="space-y-4">
-         {paged.map((log, i) => (
+         {(paged || []).map((log, i) => (
            <motion.div
              key={log.log_id || i}
              initial={{ opacity: 0, x: -10 }}
@@ -116,8 +116,8 @@ export default function Logs() {
              className="glass-sm p-8 rounded-[32px] border-white/5 flex items-start gap-8 group hover:bg-white/[0.02] transition-all"
            >
               <div className="w-24 flex-shrink-0 pt-1">
-                 <p className="font-mono text-[13px] text-accent font-bold">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</p>
-                 <p className="font-mono text-[9px] text-text-tertiary uppercase tracking-tighter mt-1">{new Date(log.timestamp).toLocaleDateString()}</p>
+                 <p className="font-mono text-[13px] text-accent font-bold">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '--:--'}</p>
+                 <p className="font-mono text-[9px] text-text-tertiary uppercase tracking-tighter mt-1">{log.timestamp ? new Date(log.timestamp).toLocaleDateString() : 'N/A'}</p>
               </div>
               
               <div className="grow space-y-3">

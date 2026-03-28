@@ -1,4 +1,4 @@
-import requests
+import httpx
 import base64
 import logging
 
@@ -24,16 +24,20 @@ def create_calendar_event(token: str, task: dict):
             
         event = {
             "summary": task.get("task", "TaskPilot Task"),
-            "description": f"Owner: {task.get('owner', 'unassigned')}",
+            "description": f"Owner: {task.get('owner', 'unassigned')}\nPriority: {task.get('priority', 'medium')}",
             "start": {
-                "dateTime": f"{deadline}T10:00:00Z"
+                "dateTime": f"{deadline}T10:00:00Z",
+                "timeZone": "UTC"
             },
             "end": {
-                "dateTime": f"{deadline}T11:00:00Z"
+                "dateTime": f"{deadline}T11:00:00Z",
+                "timeZone": "UTC"
             }
         }
-        resp = requests.post(url, headers=headers, json=event, timeout=10)
-        resp.raise_for_status()
+        with httpx.Client() as client:
+            resp = client.post(url, headers=headers, json=event, timeout=10)
+            resp.raise_for_status()
+            logger.info("Successfully created calendar event.")
     except Exception as e:
         logger.error(f"Google Calendar integration error: {e}")
 
@@ -51,7 +55,9 @@ def send_email(token: str, to: str, subject: str, message: str):
         body = {
             "raw": encoded_message
         }
-        resp = requests.post(url, headers=headers, json=body, timeout=10)
-        resp.raise_for_status()
+        with httpx.Client() as client:
+            resp = client.post(url, headers=headers, json=body, timeout=10)
+            resp.raise_for_status()
+            logger.info("Successfully sent reminder email.")
     except Exception as e:
         logger.error(f"Gmail integration error: {e}")

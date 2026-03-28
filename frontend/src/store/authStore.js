@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 const ACCENT_COLORS = {
   blue: '#2563EB',
@@ -149,9 +150,18 @@ const useAuthStore = create((set, get) => ({
   },
 
   signout: async () => {
-    await supabase.auth.signOut();
-    set({ session: null, user: null, profile: null, providerToken: null, providerRefreshToken: null });
-    applyTheme('blue', 'dark');
+    try {
+      // Clear local state immediately for fast response
+      set({ session: null, user: null, profile: null, providerToken: null, providerRefreshToken: null });
+      applyTheme('blue', 'dark');
+      
+      const { error } = await supabase.auth.signOut();
+      if (error) console.warn('Supabase signout failed, but local session cleared.', error);
+      
+      toast.success('Session Deauthorized');
+    } catch (e) {
+      console.error('Signout Critical Error:', e);
+    }
   },
 
   setAccent: async (accent) => {
