@@ -32,9 +32,6 @@ export async function apiRequest(endpoint, body = {}) {
     email: user.email
   };
 
-  console.log(`[API_REQ] ${endpoint}`, { user_id: user.id, has_token: !!provider_token });
-  if (provider_token) console.log("TOKEN:", provider_token.slice(0, 10) + "...");
-
   try {
     const response = await fetch(url, {
       method: 'POST',

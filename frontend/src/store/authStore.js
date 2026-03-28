@@ -33,8 +33,6 @@ const useAuthStore = create((set, get) => ({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        console.log("USER:", session.user.id);
-        console.log("TOKEN:", session.provider_token?.slice(0, 10) + "...");
         set({ 
           session, 
           user: session.user, 
@@ -55,7 +53,6 @@ const useAuthStore = create((set, get) => ({
         providerRefreshToken: session?.provider_refresh_token ?? null 
       });
       if (session?.user) {
-        console.log("TOKEN:", session.provider_token?.slice(0, 10) + "...");
         await get().loadProfile(session.user.id);
       } else {
         set({ profile: null });
