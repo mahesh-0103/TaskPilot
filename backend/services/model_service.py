@@ -100,10 +100,21 @@ class ModelService:
 
         today = datetime.date.today().isoformat()
         prompt = (
-            "You are a 'Digital Chief of Staff'. Extract action items from this meeting transcript.\n"
+            "You are a 'Digital Chief of Staff'. Extract structured action items from this meeting transcript.\n"
             "Return ONLY a raw JSON array. Start with [ and end with ].\n\n"
             f"Transcript:\n{text}\n\n"
-            "Fields: task_id(uuid), task(full sentence), owner, deadline(YYYY-MM-DD), priority(low|medium|high)."
+            "Fields for EACH object in the array:\n"
+            "- task_id: uuid4 string\n"
+            "- task: full descriptive sentence summarizing the action\n"
+            "- owner: capitalized first name of the person responsible or 'Strategic Team'\n"
+            "- deadline: YYYY-MM-DD (Estimate from context if not explicit, default to next Friday)\n"
+            "- due_time: HH:MM (Estimate or default to 09:00)\n"
+            "- priority: 'low', 'medium', or 'high' (Use 'high' for blockers or urgent phrases)\n"
+            "- depends_on: [] array of task_id strings if this task relies on another extracted task.\n\n"
+            "RULES:\n"
+            "1. Be deterministic: If a person is mentioned multiple times, use the same owner name.\n"
+            "2. Detect sequences: If Task B says 'After Task A is done', add Task A's uuid to Task B's depends_on.\n"
+            "3. No placeholders: Return real estimations for dates."
         )
 
         try:

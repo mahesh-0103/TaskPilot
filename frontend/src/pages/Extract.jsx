@@ -46,7 +46,8 @@ export default function Extract() {
 
       if (newTasks.length > 0) {
         toast.success(`Matrix Manifested: ${newTasks.length} nodes added.`);
-        // Note: apiRequest backend already upserts tasks to DB
+        // Auto-navigate to workflow grid after successful extraction
+        setTimeout(() => navigate('/workflow'), 1500);
       } else {
         toast.error('Neural model returned no actionable intents.');
       }

@@ -137,7 +137,8 @@ export default function Settings() {
       const updates = {
         display_name: meta.full_name || displayName,
         avatar_url: meta.avatar_url || meta.picture || avatarUrl,
-        avatar_color: avatarColor
+        avatar_color: avatarColor,
+        username: profile?.username || user?.email
       };
       setDisplayName(updates.display_name);
       setAvatarUrl(updates.avatar_url);
