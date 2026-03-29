@@ -11,18 +11,28 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
-# Initialize client once globally
+# Initialize clients once globally
 _client: Optional[Client] = None
+_service_client: Optional[Client] = None
 
 def get_client() -> Client:
     global _client
     if _client is None:
         if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
-            raise RuntimeError(
-                "SUPABASE_URL and SUPABASE_KEY must be set in .env"
-            )
+            raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in .env")
         _client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
     return _client
+
+def get_service_client() -> Client:
+    """Uses the high-privilege service role key for background operations (RLS Bypass)."""
+    global _service_client
+    if _service_client is None:
+        # Use Service Role Key if available, else fall back to standard Key
+        key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_KEY
+        if not settings.SUPABASE_URL or not key:
+            raise RuntimeError("SUPABASE_URL must be set in .env")
+        _service_client = create_client(settings.SUPABASE_URL, key)
+    return _service_client
 
 # ── Task helpers ─────────────────────────────────────────────────────────────
 
@@ -44,7 +54,8 @@ from functools import lru_cache
 # Cache task list for 5 seconds (fast-moving environment)
 @lru_cache(maxsize=32)
 def get_cached_tasks(user_id: Optional[str] = None):
-    client = get_client()
+    # If no user_id (global scan), use the service client to bypass RLS
+    client = get_service_client() if not user_id else get_client()
     query = client.table("tasks").select("*")
     if user_id:
         query = query.eq("user_id", user_id)

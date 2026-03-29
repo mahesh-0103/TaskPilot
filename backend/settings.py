@@ -8,6 +8,7 @@ class Settings:
     # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     
     # Optional trained model endpoint (no paid provider hardcoded)
     # If set, extraction will POST {"text": ...} to this endpoint and
