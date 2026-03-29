@@ -5,11 +5,15 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
+from fastapi.middleware.gzip import GZipMiddleware
+
 app = FastAPI(
     title="TaskPilot – Autonomous Workflow Execution System",
     description="Converts meeting text into structured tasks, creates workflows, detects delays, and self-heals.",
     version="1.0.0"
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.add_middleware(
     CORSMiddleware,

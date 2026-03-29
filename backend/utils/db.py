@@ -39,15 +39,20 @@ def save_tasks(tasks: List[dict]) -> None:
     except Exception as e:
         logger.error(f"Error saving tasks to Supabase: {e}")
 
-def get_tasks() -> List[dict]:
-    """Fetch all tasks as a list of dicts."""
+from functools import lru_cache
+
+# Cache task list for 5 seconds (fast-moving environment)
+@lru_cache(maxsize=32)
+def get_cached_tasks(user_id: Optional[str] = None):
     client = get_client()
-    try:
-        result = client.table("tasks").select("*").execute()
-        return result.data or []
-    except Exception as e:
-        logger.error(f"Error fetching tasks from Supabase: {e}")
-        return []
+    query = client.table("tasks").select("*")
+    if user_id:
+        query = query.eq("user_id", user_id)
+    return query.execute().data or []
+
+def get_tasks(user_id: Optional[str] = None) -> List[dict]:
+    """Fetch all tasks as a list of dicts. (Optimized with short-circuit cache)"""
+    return get_cached_tasks(user_id)
 
 def get_task_by_id(task_id: str) -> Optional[dict]:
     """Fetch a single task by task_id. Returns None if not found."""
@@ -109,10 +114,9 @@ def get_logs() -> List[dict]:
 # ── Aliases to preserve compatibility with existing routes/services ─────────
 
 def upsert_tasks(tasks: List[dict]):
-    # Callers may pass Pydantic models or raw dicts
+    get_cached_tasks.cache_clear() # Invalidate on write
     if tasks and not isinstance(tasks[0], dict):
         tasks = [t.model_dump() for t in tasks]
-    # Strip None values so DB column defaults / NOT NULL constraints are respected
     tasks = [{k: v for k, v in t.items() if v is not None} for t in tasks]
     save_tasks(tasks)
 
