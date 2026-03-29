@@ -23,11 +23,15 @@ export async function apiRequest(endpoint, body = {}, method = 'POST') {
   }
  
   const { user, provider_token } = session;
+
+  // Restore cached token if Supabase didn't return one (common after page refresh)
+  const cachedToken = localStorage.getItem('tp_provider_token');
+  const effectiveToken = provider_token || cachedToken || null;
  
-  // 2. Augment body/query
+  // 2. Augment body with session context (token is optional for non-calendar ops)
   const payload = {
     ...body,
-    token: provider_token,
+    token: effectiveToken,
     user_id: user.id,
     email: user.email
   };
@@ -37,15 +41,12 @@ export async function apiRequest(endpoint, body = {}, method = 'POST') {
       method: method,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${provider_token}`
+        ...(effectiveToken && { 'Authorization': `Bearer ${effectiveToken}` })
       }
     };
  
     if (method !== 'GET' && method !== 'HEAD') {
       options.body = JSON.stringify(payload);
-    } else {
-        // For GET, we'll append query params if needed, but the current backend 
-        // endpoints for GET /tasks/{user_id} don't need them.
     }
  
     const response = await fetch(url, options);

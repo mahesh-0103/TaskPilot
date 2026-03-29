@@ -36,3 +36,21 @@ def extract_tasks_endpoint(body: ExtractTasksRequest, background_tasks: Backgrou
         background_tasks.add_task(sync_calendar_background, body.token, tasks_raw)
 
     return ExtractTasksResponse(tasks=tasks)
+
+
+@router.post("/update/{task_id}")
+def update_task_endpoint(task_id: str, body: dict):
+    """
+    Update individual task fields. Uses service role to bypass RLS.
+    Called by the frontend workflowStore to ensure schema-safe updates.
+    """
+    # Strip reserved/unknown cols before update
+    user_id = body.pop("user_id", None)
+    body.pop("email", None)
+    body.pop("token", None)
+    
+    try:
+        db.update_task(task_id, body, user_id=user_id)
+        return {"status": "updated", "task_id": task_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Update failed: {e}")

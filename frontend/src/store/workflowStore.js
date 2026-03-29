@@ -15,10 +15,8 @@ const useWorkflowStore = create((set, get) => ({
   loadTasks: async (userId, force = false) => {
     if (!userId) return;
     
-    // Efficiency: Bypass DB fetch if tasks are already manifested in current session
-    if (get().tasks.length > 0 && !force) {
-        return;
-    }
+    // Prevent redundant concurrent loads (e.g. from AppShell + Workflow mounting simultaneously)
+    if (get().isLoading) return;
 
     set({ isLoading: true });
     try {
@@ -36,16 +34,17 @@ const useWorkflowStore = create((set, get) => ({
   },
 
   updateTask: async (taskId, fields) => {
-    // Update local state for instant feedback
+    // Optimistic update for instant UI feedback
     set((state) => ({
       tasks: state.tasks.map((t) =>
         t.task_id === taskId ? { ...t, ...fields } : t
       ),
     }));
 
-    // Persist to Supabase
+    // Persist via backend (bypasses RLS via service role)
     try {
-       await supabase.from('tasks').update(fields).eq('task_id', taskId);
+       const { apiRequest } = await import('../lib/api');
+       await apiRequest(`/tasks/update/${taskId}`, fields);
     } catch (e) {
        console.error('Failed to sync task update:', e);
     }

@@ -33,10 +33,16 @@ const useAuthStore = create((set, get) => ({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        // Restore provider_token: Supabase only provides it on callback, cache it
+        const cachedToken = localStorage.getItem('tp_provider_token');
+        const providerToken = session.provider_token || cachedToken || null;
+        if (session.provider_token) {
+          localStorage.setItem('tp_provider_token', session.provider_token);
+        }
         set({ 
           session, 
           user: session.user, 
-          providerToken: session.provider_token,
+          providerToken,
           providerRefreshToken: session.provider_refresh_token 
         });
         await get().loadProfile(session.user.id);
@@ -46,16 +52,22 @@ const useAuthStore = create((set, get) => ({
     }
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
+      // Cache provider_token whenever we get a fresh one from OAuth
+      if (session?.provider_token) {
+        localStorage.setItem('tp_provider_token', session.provider_token);
+      }
+      const cachedToken = localStorage.getItem('tp_provider_token');
       set({ 
         session, 
         user: session?.user ?? null, 
-        providerToken: session?.provider_token ?? null,
+        providerToken: session?.provider_token ?? cachedToken ?? null,
         providerRefreshToken: session?.provider_refresh_token ?? null 
       });
       if (session?.user) {
         await get().loadProfile(session.user.id);
       } else {
         set({ profile: null });
+        localStorage.removeItem('tp_provider_token');
         applyTheme('blue', 'dark');
       }
     });

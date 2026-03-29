@@ -37,7 +37,7 @@ export default function Workflow() {
     try {
       await apiRequest('/execution/execute-tasks', { tasks: tasks.filter(t => t.status === 'pending') });
       toast.success('Dispatches executed successfully.');
-      loadTasks();
+      loadTasks(user.id, true);
     } catch (e) {
       toast.error('Execution Interrupted: ' + e.message);
     } finally {
@@ -60,14 +60,19 @@ export default function Workflow() {
   };
 
   const handleSyncCalendar = async (task) => {
+    const { providerToken: currentToken } = useAuthStore.getState();
+    if (!currentToken) {
+      toast.error('Google integration offline. Please reconnect in Settings.');
+      return;
+    }
     try {
       const datePart = task.deadline ? task.deadline.split('T')[0] : new Date().toISOString().split('T')[0];
-      const timePart = task.due_time || '09:00';
-      const startStr = `${datePart}T${timePart}:00Z`;
+      // Use 09:00 as default — due_time is not stored in DB
+      const startStr = `${datePart}T09:00:00Z`;
       
       const d = new Date(startStr);
       if (isNaN(d.getTime())) {
-        throw new Error('Neural date format is corrupt. Please re-assign.');
+        throw new Error('Invalid deadline format. Please re-assign a deadline.');
       }
       const end = new Date(d.getTime() + 3600000).toISOString();
       
@@ -78,9 +83,9 @@ export default function Workflow() {
         description: `Strategic Dispatch: ${task.task}\nPriority: ${task.priority}`,
         start_time: startStr,
         end_time: end,
-        token: providerToken
+        token: currentToken
       });
-      await loadTasks();
+      loadTasks(user.id, true);
       toast.success('Orbit Synchronized with Google Calendar');
     } catch (e) {
       toast.error('Calendar Sync Failed: ' + e.message);
@@ -139,29 +144,30 @@ export default function Workflow() {
 
   useEffect(() => {
     if (user?.id) {
-        loadTasks(user.id);
+        // Risk level fetch — separate from task loading
         const fetchRisk = async () => {
            try {
-              const res = await apiRequest(`/monitor/risk/${user.id}`);
+              const res = await apiRequest(`/monitor/risk/${user.id}`, {}, 'GET');
               setRiskLevel(res.level || 'low');
            } catch (e) {
-              console.error(e);
+              // Risk is non-critical, fail silently
            }
         };
         fetchRisk();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const handleExecuteWorkflow = async () => {
     setIsExecuting(true);
+    const { providerToken: currentToken } = useAuthStore.getState();
     try {
       await apiRequest('/execution/execute-workflow', { 
         user_id: user.id, 
-        token: providerToken 
+        token: currentToken 
       });
       toast.success('Sovereign Workflow Activated: Auto-scheduling complete.');
-      // Refresh tasks after scheduling
-      loadTasks(user.id);
+      // Force refresh tasks to reflect new statuses
+      loadTasks(user.id, true);
     } catch (e) {
       toast.error('Activation Interrupted: ' + e.message);
     } finally {
