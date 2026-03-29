@@ -92,20 +92,25 @@ def execute_entire_workflow(user_id: str, token: str = None) -> List[Log]:
 
     for task in pending:
         # 2. Auto-Schedule to Calendar
+        updates = {"updated_at": ts}
         if token:
             event_id = google_service.create_calendar_event(token, task, auto_schedule=True)
             if event_id:
-                db.update_task(task["task_id"], {"calendar_event_id": event_id})
+                updates["calendar_event_id"] = event_id
+        
+        # Ensure it's marked as pending (if it was created in a draft state)
+        updates["status"] = "pending"
+        db.update_task(task["task_id"], updates)
         
         # 3. Execution Log for each task
         log = Log(
             log_id=helpers.new_id(),
             user_id=user_id,
-            action="Dispatch Scheduled",
-            reason="Automated by workflow activation",
+            action="Workflow Node Established",
+            reason="Autonomous sequence activation",
             timestamp=ts,
             task_id=task["task_id"],
-            decision_trace="Task scheduled in optimal calendar slot"
+            decision_trace="Strategic dispatch node established in temporal grid"
         )
         db.insert_log(log)
         logs.append(log)

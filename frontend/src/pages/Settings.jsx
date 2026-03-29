@@ -28,7 +28,7 @@ const AVATAR_COLORS = [
 
 function Section({ title, icon: Icon, children }) {
   return (
-    <div className="glass-sm p-10 rounded-[40px] border-white/5 space-y-8 bg-[#1a1b1e] shadow-[20px_20px_60px_#111214,-20px_-20px_60px_#232428] relative overflow-hidden">
+    <div className="glass-sm p-10 rounded-[40px] border-border-subtle/50 space-y-8 bg-bg-elevated shadow-[20px_20px_60px_rgba(0,0,0,0.08),-20px_-20px_60px_rgba(255,255,255,0.02)] dark:shadow-[20px_20px_60px_#111214,-20px_-20px_60px_#232428] relative overflow-hidden transition-colors">
       <div className="absolute -top-12 -right-12 w-24 h-24 bg-accent/5 blur-3xl rounded-full" />
       <div className="flex items-center gap-4 mb-2 relative z-10">
          <div className="p-3.5 rounded-2xl bg-accent shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3),4px_4px_8px_rgba(37,99,235,0.2)] text-white">
@@ -36,7 +36,7 @@ function Section({ title, icon: Icon, children }) {
          </div>
          <h2 className="text-[17px] font-display italic text-text-primary tracking-[0.1em] font-bold">{title}</h2>
       </div>
-      <div className="h-px bg-white/5 relative z-10" />
+      <div className="h-px bg-text-tertiary/10 relative z-10" />
       <div className="relative z-10">
         {children}
       </div>
@@ -131,12 +131,22 @@ export default function Settings() {
      }
   };
 
-  const syncGoogleProfile = () => {
+  const syncGoogleProfile = async () => {
     const meta = user?.user_metadata;
     if (meta) {
-      if (meta.full_name) setDisplayName(meta.full_name);
-      if (meta.avatar_url || meta.picture) setAvatarUrl(meta.avatar_url || meta.picture);
-      toast.success('Google Context Synchronized');
+      const updates = {
+        display_name: meta.full_name || displayName,
+        avatar_url: meta.avatar_url || meta.picture || avatarUrl,
+        avatar_color: avatarColor
+      };
+      setDisplayName(updates.display_name);
+      setAvatarUrl(updates.avatar_url);
+      
+      const res = await updateProfile(updates);
+      if (res.success) {
+        toast.success('Google Context Synchronized & Persisted');
+        if (user?.id) await loadProfile(user.id);
+      }
     }
   };
 
@@ -160,7 +170,7 @@ export default function Settings() {
             <div className="flex flex-col md:flex-row gap-12 items-start">
                <div className="relative group">
                   <div
-                    className="w-40 h-40 rounded-[48px] flex items-center justify-center text-white text-[48px] font-display italic flex-shrink-0 shadow-[20px_20px_60px_#111214,-20px_-20px_60px_#232428] ring-4 ring-white/10 overflow-hidden transition-all group-hover:ring-accent/40"
+                    className="w-40 h-40 rounded-[48px] flex items-center justify-center text-white text-[48px] font-display italic flex-shrink-0 shadow-[20px_20px_60px_rgba(0,0,0,0.1)] dark:shadow-[20px_20px_60px_#111214] ring-4 ring-text-primary/10 overflow-hidden transition-all group-hover:ring-accent/40"
                     style={{ background: avatarUrl ? `url(${avatarUrl}) center/cover` : avatarColor }}
                   >
                     {!avatarUrl && initials}
@@ -231,7 +241,6 @@ export default function Settings() {
         </div>
 
         <div className="lg:col-span-6 space-y-10">
-          {/* Appearance */}
           <Section title="Look & Feel" icon={Palette}>
             <div className="space-y-10">
               <div>
@@ -273,7 +282,7 @@ export default function Settings() {
           {/* Connectivity */}
           <Section title="Connectivity" icon={Globe}>
             <div className="space-y-8">
-              <div className="flex items-center justify-between p-6 rounded-[32px] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+              <div className="flex items-center justify-between p-6 rounded-[32px] bg-bg-surface/50 border border-border-subtle hover:bg-bg-surface transition-colors">
                 <div className="flex items-center gap-5">
                   <div className="w-12 h-12 rounded-[18px] bg-accent/10 flex items-center justify-center">
                      <Globe className={clsx("w-6 h-6", providerToken ? "text-success" : "text-text-dim")} />

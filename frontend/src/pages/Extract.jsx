@@ -104,7 +104,7 @@ export default function Extract() {
                   className="grow rounded-xl font-mono text-[12px] uppercase tracking-widest h-14 shadow-lg shadow-accent/20 font-bold"
                 >
                   {isExtracting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  {isExtracting ? 'Extracting Entities...' : 'Extract Entities'}
+                  {isExtracting ? 'Neural Deep Scan...' : 'Neural Deep Scan'}
                 </Button>
               </div>
            </div>

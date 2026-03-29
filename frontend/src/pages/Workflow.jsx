@@ -186,7 +186,7 @@ export default function Workflow() {
              className="h-12 px-8 rounded-2xl bg-accent text-white font-mono text-[11px] uppercase tracking-[0.3em] font-bold shadow-[0_15px_30px_rgba(37,99,235,0.3)] hover:scale-[1.05] active:scale-95 transition-all"
            >
               {isExecuting ? <RefreshCw className="w-4 h-4 animate-spin mr-3" /> : <Zap className="w-4 h-4 mr-3" />}
-              Execute Workflow
+              Establish & Execute Workflow
            </Button>
            <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 shadow-inner">
              <button onClick={() => setView('grid')} className={clsx("p-2 rounded-lg transition-all", view === 'grid' ? "bg-white/10 text-white shadow-lg" : "text-text-tertiary hover:text-text-primary")}><LayoutGrid className="w-3.5 h-3.5" /></button>

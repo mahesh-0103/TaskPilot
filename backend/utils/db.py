@@ -40,15 +40,15 @@ def get_service_client() -> Client:
 
 # ── Task helpers ─────────────────────────────────────────────────────────────
 
-def save_tasks(tasks: List[dict]) -> None:
+def save_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
     """Insert tasks into Supabase. Ensure task_id exists."""
-    client = get_client()
+    client = get_service_client() if not user_id else get_client()
     try:
-        # Supabase upsert handles creation if it doesn't exist.
-        # Ensure task_id is present in each task dict.
         for t in tasks:
             if not t.get("task_id"):
                 t["task_id"] = str(uuid.uuid4())
+            if user_id and not t.get("user_id"):
+                t["user_id"] = user_id
         client.table("tasks").upsert(tasks).execute()
     except Exception as e:
         logger.error(f"Error saving tasks to Supabase: {e}")
@@ -69,9 +69,9 @@ def get_tasks(user_id: Optional[str] = None) -> List[dict]:
     """Fetch all tasks as a list of dicts. (Optimized with short-circuit cache)"""
     return get_cached_tasks(user_id)
 
-def get_task_by_id(task_id: str) -> Optional[dict]:
+def get_task_by_id(task_id: str, user_id: Optional[str] = None) -> Optional[dict]:
     """Fetch a single task by task_id. Returns None if not found."""
-    client = get_client()
+    client = get_service_client() if not user_id else get_client()
     try:
         result = (
             client.table("tasks")
@@ -85,15 +85,18 @@ def get_task_by_id(task_id: str) -> Optional[dict]:
         logger.error(f"Error fetching task by id from Supabase: {e}")
         return None
 
-def update_tasks(tasks: List[dict]) -> None:
+def update_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
     """Update rows using task_id. Update updated_at timestamp."""
-    client = get_client()
+    client = get_service_client() if not user_id else get_client()
     ts = datetime.now(timezone.utc).isoformat()
     try:
         for task in tasks:
             task["updated_at"] = ts
             if "task_id" in task:
-                client.table("tasks").update(task).eq("task_id", task["task_id"]).execute()
+                query = client.table("tasks").update(task).eq("task_id", task["task_id"])
+                if user_id:
+                    query = query.eq("user_id", user_id)
+                query.execute()
     except Exception as e:
         logger.error(f"Error updating tasks in Supabase: {e}")
 
@@ -101,26 +104,26 @@ def update_tasks(tasks: List[dict]) -> None:
 
 def add_log(log: dict) -> None:
     """Insert into logs table. Ensure log_id and user_id exist."""
-    client = get_client()
+    user_id = log.get("user_id")
+    client = get_service_client() if not user_id else get_client()
     try:
         if not log.get("log_id"):
             log["log_id"] = str(uuid.uuid4())
-        if not log.get("user_id"):
-            logger.warning(
-                f"Log {log.get('log_id')} missing user_id — skipping DB insert to avoid NOT NULL violation."
-            )
-            return
+        
         # Remove None values so Supabase uses column defaults
         clean = {k: v for k, v in log.items() if v is not None}
         client.table("logs").insert(clean).execute()
     except Exception as e:
         logger.error(f"Error adding log to Supabase: {e}")
 
-def get_logs() -> List[dict]:
+def get_logs(user_id: Optional[str] = None) -> List[dict]:
     """Fetch logs ordered by timestamp ascending."""
-    client = get_client()
+    client = get_service_client() if not user_id else get_client()
     try:
-        result = client.table("logs").select("*").order("timestamp", desc=False).execute()
+        query = client.table("logs").select("*").order("timestamp", desc=False)
+        if user_id:
+            query = query.eq("user_id", user_id)
+        result = query.execute()
         return result.data or []
     except Exception as e:
         logger.error(f"Error fetching logs from Supabase: {e}")
@@ -143,7 +146,7 @@ def update_task(task_id: str, fields: dict, user_id: Optional[str] = None):
     fields["task_id"] = task_id
     if user_id:
         fields["user_id"] = user_id
-    update_tasks([fields])
+    update_tasks([fields], user_id=user_id)
 
 def insert_log(log):
     if not isinstance(log, dict):
@@ -155,7 +158,7 @@ def get_all_logs() -> List[dict]:
 
 def get_user_email(user_id: str) -> Optional[str]:
     """Fetch user email from profiles table."""
-    client = get_client()
+    client = get_service_client()
     try:
         res = client.table("profiles").select("email").eq("id", user_id).limit(1).execute()
         return res.data[0]["email"] if res.data else None

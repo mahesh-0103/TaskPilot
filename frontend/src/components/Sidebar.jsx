@@ -94,32 +94,7 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Contextual Utility */}
-      <div className="px-10 py-8 space-y-6">
-         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-               <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-widest">Interface</span>
-               <button 
-                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                 className="p-2 rounded-xl bg-bg-surface border border-border-subtle text-text-secondary hover:text-accent transition-colors shadow-sm"
-               >
-                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-               </button>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-               {ACCENTS.map(a => (
-                 <button 
-                   key={a}
-                   onClick={() => setAccent(a)}
-                   className={clsx(
-                     "w-1 h-3 rounded-full transition-all",
-                     accent === a ? "bg-accent scale-y-150" : "bg-text-tertiary/20 hover:bg-text-tertiary/40"
-                   )}
-                 />
-               ))}
-            </div>
-         </div>
-      </div>
+      {/* Interface options removed */}
 
       {/* User Footer */}
       <div className="p-8 mt-auto border-t border-border-subtle bg-bg-surface/5">
