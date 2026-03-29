@@ -77,41 +77,20 @@ class ModelService:
         if cached is not None:
             return cached
 
-        from concurrent.futures import ThreadPoolExecutor, as_completed
         from settings import settings
-
-        tasks_to_try = []
-        if settings.GOOGLE_API_KEY:
-            tasks_to_try.append((self.predict_tasks_gemini, "Gemini"))
+        
+        # User explicitly requested to ONLY use Mistral and NOT Gemini.
         if settings.MISTRAL_API_KEY:
-            tasks_to_try.append((self.predict_tasks_mistral, "Mistral"))
-
-        if not tasks_to_try:
-            logger.warning("No LLM API keys configured.")
-            return []
-
-        # Start a competitive race with a sub-15s total threshold
-        try:
-            with ThreadPoolExecutor(max_workers=len(tasks_to_try)) as executor:
-                future_to_name = {executor.submit(fn, text): name for fn, name in tasks_to_try}
-                
-                # Global timeout of 12 seconds for the race
-                try:
-                    for future in as_completed(future_to_name, timeout=12.0):
-                        name = future_to_name[future]
-                        try:
-                            result = future.result()
-                            if result and isinstance(result, list):
-                                logger.info(f"RACE WINNER: {name} manifested data.")
-                                _cache_set(cache_key, result)
-                                return result
-                        except Exception as e:
-                            logger.error(f"NEURAL ERROR ({name}): {e}")
-                except TimeoutError:
-                    logger.warning("Neural race timed out. Shifting to localized extraction.")
-        except Exception as e:
-            logger.error(f"FATAL RACE ERROR: {e}")
-
+            try:
+                logger.info("Executing neural extraction via ONLY Mistral as requested...")
+                result = self.predict_tasks_mistral(text)
+                if result:
+                    _cache_set(cache_key, result)
+                    return result
+            except Exception as e:
+                logger.error(f"Neural extraction failed: {e}")
+        
+        logger.warning("Mistral extraction failed or no key present. Defaulting to local heuristics.")
         return []
 
     def predict_tasks_mistral(self, text: str) -> list:
@@ -122,41 +101,39 @@ class ModelService:
         today = datetime.date.today().isoformat()
         prompt = (
             "You are a 'Digital Chief of Staff'. Extract action items from this meeting transcript.\n"
-            "Return ONLY a raw JSON array.\n\n"
+            "Return ONLY a raw JSON array. Start with [ and end with ].\n\n"
             f"Transcript:\n{text}\n\n"
-            "Fields: task_id, task, owner, deadline(YYYY-MM-DD), priority(low|medium|high)."
+            "Fields: task_id(uuid), task(full sentence), owner, deadline(YYYY-MM-DD), priority(low|medium|high)."
         )
 
         try:
             import httpx
             headers = {
-                "Authorization": f"Bearer {settings.MISTRAL_API_KEY}",
+                "Authorization": f"Bearer {settings.MISTRAL_API_KEY.strip()}",
                 "Content-Type": "application/json"
             }
             payload = {
                 "model": "mistral-large-latest",
-                "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"}
+                "messages": [{"role": "user", "content": prompt}]
             }
             
-            # Tighter 8s timeout for the fetch
-            with httpx.Client(timeout=8.0) as client:
+            # Use a slightly longer 15s timeout for premium model
+            with httpx.Client(timeout=15.0) as client:
                 response = client.post("https://api.mistral.ai/v1/chat/completions", json=payload, headers=headers)
                 response.raise_for_status()
                 res_json = response.json()
                 content = res_json["choices"][0]["message"]["content"]
                 
+                # Robust parsing of JSON from markdown if exists
                 match = re.search(r"\[.*\]", content, re.DOTALL)
                 if match:
                     return json.loads(match.group(0))
-                # If they returned an object with a 'tasks' key
+                
                 data = json.loads(content)
-                if isinstance(data, dict) and "tasks" in data:
-                    return data["tasks"]
-                if isinstance(data, list):
-                    return data
+                if isinstance(data, dict) and "tasks" in data: return data["tasks"]
+                if isinstance(data, list): return data
         except Exception as e:
-            logger.warning(f"Mistral extraction failed: {e}")
+            logger.warning(f"Mistral Error: {e}")
         return []
 
     def predict_tasks_gemini(self, text: str) -> list:
