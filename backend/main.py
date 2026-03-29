@@ -58,6 +58,7 @@ def autonomous_loop():
     logger = logging.getLogger("AutonomousLoop")
     logger.info("Autonomous Monitoring & Healing Loop Started.")
     import utils.db as db
+    logger.info("System node operational: Service Role synchronization active.")
     while True:
         try:
             logger.info("Running scheduled monitoring cycle...")
