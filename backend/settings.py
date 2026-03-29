@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv  # type: ignore
 
-load_dotenv()
+# Ensure .env is loaded from the current directory (backend)
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 
 class Settings:

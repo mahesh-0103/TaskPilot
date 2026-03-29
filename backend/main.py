@@ -85,9 +85,9 @@ def startup_event():
 def health_check():
     return {"status": "TaskPilot is running", "version": "1.0.0"}
 
-@app.get("/tasks", tags=["Task Extraction"])
-def get_all_tasks_endpoint():
-    """Get all tasks from Supabase."""
+@app.get("/tasks/{user_id}", tags=["Task Extraction"])
+def get_user_tasks_endpoint(user_id: str):
+    """Get tasks for a specific user through the backend (RLS Bypass)."""
     import utils.db as db
-    tasks = db.get_all_tasks()
+    tasks = db.get_tasks(user_id)
     return {"tasks": tasks}

@@ -69,11 +69,11 @@ export default function Extract() {
         <div className="space-y-2">
            <span className="font-mono text-[11px] text-text-secondary tracking-[0.4em] uppercase font-bold">Task AI // <span className="text-accent underline cursor-pointer">Live</span></span>
            <h1 className="text-[56px] leading-tight font-display italic text-text-primary tracking-tight">Convert Text to Tasks</h1>
-           <div className="flex gap-4 font-mono text-[10px] text-text-secondary tracking-widest uppercase items-center">
-              <span>Entropy Level: <span className="text-success font-bold">Low</span></span>
-              <span>//</span>
-              <span>AI Accuracy: <span className="text-accent font-bold">99.1%</span></span>
-           </div>
+            <div className="flex gap-4 font-mono text-[10px] text-text-secondary tracking-widest uppercase items-center">
+               <span>Entropy Level: <span className="text-secondary font-bold">Stable</span></span>
+               <span className="opacity-20">//</span>
+               <span>Neural Precision: <span className="text-accent font-bold">Optimal</span></span>
+            </div>
         </div>
       </header>
 

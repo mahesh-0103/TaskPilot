@@ -131,7 +131,7 @@ export default function Settings() {
      }
   };
 
-  const syncGoogleProfile = async () => {
+  const syncGoogleProfile = () => {
     const meta = user?.user_metadata;
     if (meta) {
       const updates = {
@@ -143,11 +143,14 @@ export default function Settings() {
       setDisplayName(updates.display_name);
       setAvatarUrl(updates.avatar_url);
       
-      const res = await updateProfile(updates);
-      if (res.success) {
-        toast.success('Google Context Synchronized & Persisted');
-        if (user?.id) await loadProfile(user.id);
-      }
+      // Proactive non-blocking sync
+      toast.promise(updateProfile(updates), {
+        loading: 'Synchronizing Identity Layer...',
+        success: 'Strategic Context Updated',
+        error: 'Sync Protocol Interrupted'
+      });
+      
+      if (user?.id) loadProfile(user.id);
     }
   };
 

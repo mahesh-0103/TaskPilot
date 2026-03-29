@@ -16,15 +16,14 @@ const useWorkflowStore = create((set, get) => ({
     if (!userId) return;
     set({ isLoading: true });
     try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+      const { apiRequest } = await import('../lib/api');
+      const data = await apiRequest(`/tasks/${userId}`);
       
-      if (!error && data) {
-        set({ tasks: data });
+      if (data?.tasks) {
+        set({ tasks: data.tasks });
       }
+    } catch (e) {
+      console.error('Task Discovery Error:', e);
     } finally {
       set({ isLoading: false });
     }
