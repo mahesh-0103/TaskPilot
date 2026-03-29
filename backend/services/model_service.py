@@ -100,21 +100,19 @@ class ModelService:
 
         today = datetime.date.today().isoformat()
         prompt = (
-            "You are a 'Digital Chief of Staff'. Extract structured action items from this meeting transcript.\n"
-            "Return ONLY a raw JSON array. Start with [ and end with ].\n\n"
+            "You are a strict, highly accurate 'Digital Chief of Staff'. Extract structured actionable items from this transcript.\n"
+            "CRITICAL INSTRUCTIONS:\n"
+            "1. STRICTLY extract ONLY actionable tasks. IGNORE general statements, conversational filler, or project updates.\n"
+            "2. If a specific date is mentioned (e.g., 'April 5', 'next Friday'), calculate the precise YYYY-MM-DD date based on today's date (" + today + ").\n"
+            "3. Return ONLY a raw JSON array of objects. Do NOT use markdown formatting (no ```json). Start with [ and end with ].\n\n"
             f"Transcript:\n{text}\n\n"
             "Fields for EACH object in the array:\n"
             "- task_id: uuid4 string\n"
-            "- task: full descriptive sentence summarizing the action\n"
-            "- owner: capitalized first name of the person responsible or 'Strategic Team'\n"
-            "- deadline: YYYY-MM-DD (Estimate from context if not explicit, default to next Friday)\n"
-            "- due_time: HH:MM (Estimate or default to 09:00)\n"
-            "- priority: 'low', 'medium', or 'high' (Use 'high' for blockers or urgent phrases)\n"
-            "- depends_on: [] array of task_id strings if this task relies on another extracted task.\n\n"
-            "RULES:\n"
-            "1. Be deterministic: If a person is mentioned multiple times, use the same owner name.\n"
-            "2. Detect sequences: If Task B says 'After Task A is done', add Task A's uuid to Task B's depends_on.\n"
-            "3. No placeholders: Return real estimations for dates."
+            "- task: full descriptive actionable sentence\n"
+            "- owner: capitalized first name of the person responsible\n"
+            "- deadline: YYYY-MM-DD string\n"
+            "- priority: 'low', 'medium', or 'high'\n"
+            "- depends_on: [] array of task_id strings if this task relies on another extracted task.\n"
         )
 
         max_retries = 2
@@ -132,11 +130,10 @@ class ModelService:
                     "temperature": 0.1
                 }
                 
-                # Faster model, faster timeout
                 with httpx.Client(timeout=25.0) as client:
                     logger.info(f"Mistral Turbo Dispatch (Attempt {attempt + 1})...")
                     response = client.post("https://api.mistral.ai/v1/chat/completions", json=payload, headers=headers)
-                    if response.status_code == 429: # Rate limit
+                    if response.status_code == 429:
                         time.sleep(1)
                         continue
                     response.raise_for_status()
@@ -147,6 +144,9 @@ class ModelService:
                         
                     content = choices[0].get("message", {}).get("content", "")
                     if not content: continue
+                    
+                    # Clean markdown code blocks if the model ignored instructions
+                    content = content.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
                     
                     match = re.search(r"\[.*\]", content, re.DOTALL)
                     if match:
@@ -162,9 +162,12 @@ class ModelService:
     def predict_tasks_gemini(self, text: str) -> list:
         today = datetime.date.today().isoformat()
         system_instruction = (
-            "You are an 'Autonomous Executive Assistant'. Extract structured action items from transcripts.\n"
-            "Return ONLY a raw JSON array. Start with [ end with ].\n"
-            "Fields: task_id(uuid4), task, owner, deadline(YYYY-MM-DD), priority(low|medium|high).\n"
+            "You are a strict, highly accurate 'Autonomous Executive Assistant'. Extract structured actionable items from transcripts.\n"
+            "CRITICAL INSTRUCTIONS:\n"
+            "1. STRICTLY extract ONLY actionable tasks. IGNORE general statements or project updates.\n"
+            f"2. If a specific date is mentioned, calculate the precise YYYY-MM-DD date based on today's date ({today}).\n"
+            "3. Return ONLY a raw JSON array. Start with [ end with ].\n"
+            "Fields: task_id(uuid4), task, owner, deadline(YYYY-MM-DD), priority(low|medium|high), depends_on(array of task_ids).\n"
             "Rules for PRIORITY Prediction:\n"
             "- HIGH: If task contains 'urgent', 'ASAP', 'blocker', 'critical', 'immediately', or is a blocking dependency.\n"
             "- MEDIUM: Default for standard action items.\n"

@@ -70,10 +70,11 @@ export default function TaskDetailPanel({ task, onClose }) {
 
         // Remove from Google Calendar if event was previously synced
         const { providerToken } = useAuthStore.getState();
-        if (providerToken && task.calendar_event_id) {
+        if (providerToken && task.task_id) {
           try {
+            const eventId = task.task_id.replace(/-/g, '');
             await apiRequest('/calendar/delete-event', {
-              event_id: task.calendar_event_id,
+              event_id: eventId,
               token: providerToken
             });
           } catch (_) {

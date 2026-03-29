@@ -47,8 +47,9 @@ def create_event(body: CreateEventRequest, token: Optional[str] = None):
     try:
         import httpx
 
-        # Use the richer body provided by the frontend
+        event_id_custom = body.task_id.replace('-', '')
         event_body = {
+            "id": event_id_custom,
             "summary": body.summary,
             "description": body.description,
             "start": {
@@ -73,16 +74,15 @@ def create_event(body: CreateEventRequest, token: Optional[str] = None):
             timeout=15,
         )
 
-        if resp.status_code not in (200, 201):
+        if resp.status_code not in (200, 201) and resp.status_code != 409:
             raise HTTPException(
                 status_code=resp.status_code,
                 detail=f"Google API Error: {resp.text}"
             )
 
-        event_data = resp.json()
-        event_id = event_data.get("id", "")
+        event_id = event_id_custom
 
-        # Update task with calendar_event_id
+        # Attempt to store event_id in DB (it will be filtered out if column doesn't exist, which is fine since we calculate it)
         db.update_task(body.task_id, {"calendar_event_id": event_id}, user_id=body.user_id)
 
         return {"event_id": event_id, "message": "Objective Synchronized to Google Calendar."}

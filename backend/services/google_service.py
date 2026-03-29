@@ -86,7 +86,14 @@ def create_calendar_event(token: str, task: dict, auto_schedule: bool = False):
         start_dt = datetime.fromisoformat(start_time.replace("Z", "+00:00"))
         end_time = (start_dt + timedelta(hours=1)).isoformat().replace("+00:00", "Z")
             
+        # Use deterministic event ID so we can delete it without DB storage
+        event_id = task.get('task_id', '').replace('-', '')
+        if not event_id:
+            logger.error("No task_id provided for calendar event generation.")
+            return None
+
         event = {
+            "id": event_id,
             "summary": f"🚀 {task.get('task', 'TaskPilot Task')}",
             "description": f"Owner: {task.get('owner', 'unassigned')}\nPriority: {task.get('priority', 'medium')}\n\nAutomated by TaskPilot Intelligent Scheduler.",
             "start": {
@@ -107,9 +114,10 @@ def create_calendar_event(token: str, task: dict, auto_schedule: bool = False):
         }
         with httpx.Client() as client:
             resp = client.post(url, headers=headers, json=event, timeout=10)
+            if resp.status_code in (200, 201) or resp.status_code == 409: # 409 means it already exists
+                logger.info(f"Successfully created (or already synced) calendar event {event_id}.")
+                return event_id
             resp.raise_for_status()
-            logger.info("Successfully created calendar event.")
-            return resp.json().get("id")
     except Exception as e:
         logger.error(f"Google Calendar integration error: {e}")
         return None
