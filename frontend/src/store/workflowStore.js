@@ -17,7 +17,7 @@ const useWorkflowStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const { apiRequest } = await import('../lib/api');
-      const data = await apiRequest(`/tasks/${userId}`);
+      const data = await apiRequest(`/tasks/${userId}`, {}, 'GET');
       
       if (data?.tasks) {
         set({ tasks: data.tasks });

@@ -11,7 +11,7 @@ import { CONFIG } from '../config';
  * @param {string} endpoint - Relative API path (e.g. '/extract-tasks')
  * @param {object} body - Request payload (will be augmented)
  */
-export async function apiRequest(endpoint, body = {}) {
+export async function apiRequest(endpoint, body = {}, method = 'POST') {
   const url = `${CONFIG.BACKEND_URL}${endpoint}`;
   
   // 1. Get latest session (auto-refreshes if needed)
@@ -21,32 +21,39 @@ export async function apiRequest(endpoint, body = {}) {
     console.error("SESSION_LOAD_FAILURE: No active session found.");
     throw new Error('AUTH_REQUIRED');
   }
-
+ 
   const { user, provider_token } = session;
-
-  // 2. Augment body with necessary tokens/IDs
+ 
+  // 2. Augment body/query
   const payload = {
     ...body,
     token: provider_token,
     user_id: user.id,
     email: user.email
   };
-
+ 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
+    const options = {
+      method: method,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${provider_token}`
-      },
-      body: JSON.stringify(payload)
-    });
-
+      }
+    };
+ 
+    if (method !== 'GET' && method !== 'HEAD') {
+      options.body = JSON.stringify(payload);
+    } else {
+        // For GET, we'll append query params if needed, but the current backend 
+        // endpoints for GET /tasks/{user_id} don't need them.
+    }
+ 
+    const response = await fetch(url, options);
+ 
     // 3. Auto-Retry Logic on 401
     if (response.status === 401) {
       console.warn("UNAUTHORIZED: Attempting token refresh and retry...");
       
-      // Force refresh session
       const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
       
       if (refreshedSession) {
@@ -57,14 +64,17 @@ export async function apiRequest(endpoint, body = {}) {
           email: refreshedSession.user.email
         };
 
-        return await fetch(url, {
-          method: 'POST',
+        const retryOptions = {
+          method: method,
           headers: {
              'Content-Type': 'application/json',
              'Authorization': `Bearer ${refreshedSession.provider_token}`
-          },
-          body: JSON.stringify(retryPayload)
-        });
+          }
+        };
+        if (method !== 'GET') retryOptions.body = JSON.stringify(retryPayload);
+
+        const retryResponse = await fetch(url, retryOptions);
+        return await retryResponse.json();
       }
     }
 
