@@ -57,12 +57,17 @@ def autonomous_loop():
     """Background thread for continuous monitoring and healing."""
     logger = logging.getLogger("AutonomousLoop")
     logger.info("Autonomous Monitoring & Healing Loop Started.")
+    import utils.db as db
     while True:
         try:
             logger.info("Running scheduled monitoring cycle...")
-            monitor_tasks() # Scans for delays/issues
+            logs = monitor_tasks() # Scans for delays/issues
+            for log in logs:
+                db.insert_log(log) # Persist background detections
+                
             logger.info("Running scheduled healing cycle...")
-            run_healing_cycle() # Heals detected issues
+            # Note: run_healing_cycle currently manages its own log insertion
+            run_healing_cycle() 
         except Exception as e:
             logger.error(f"Error in autonomous loop: {e}")
         time.sleep(60)
