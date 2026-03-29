@@ -67,7 +67,7 @@ def save_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
         logger.error(f"Error saving tasks to Supabase: {e}")
 
 def get_tasks(user_id: Optional[str] = None) -> List[dict]:
-    """Fetch all tasks for a specific user or global scan."""
+    """Fetch tasks from Supabase."""
     client = get_service_client()
     try:
         query = client.table("tasks").select("*")
@@ -81,7 +81,7 @@ def get_tasks(user_id: Optional[str] = None) -> List[dict]:
 
 def get_task_by_id(task_id: str, user_id: Optional[str] = None) -> Optional[dict]:
     """Fetch a single task by task_id. Returns None if not found."""
-    client = get_service_client() if not user_id else get_client()
+    client = get_service_client()
     try:
         result = (
             client.table("tasks")
@@ -95,9 +95,20 @@ def get_task_by_id(task_id: str, user_id: Optional[str] = None) -> Optional[dict
         logger.error(f"Error fetching task by id from Supabase: {e}")
         return None
 
+def delete_task(task_id: str, user_id: Optional[str] = None) -> None:
+    """Delete a task from Supabase."""
+    client = get_service_client()
+    try:
+        query = client.table("tasks").delete().eq("task_id", task_id)
+        if user_id:
+            query = query.eq("user_id", user_id)
+        query.execute()
+    except Exception as e:
+        logger.error(f"Error deleting task from Supabase: {e}")
+
 def update_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
-    """Update rows using task_id. Filter out non-existent schema columns."""
-    client = get_service_client() if not user_id else get_client()
+    """Update specific fields of existing tasks."""
+    client = get_service_client()
     ts = datetime.now(timezone.utc).isoformat()
     
     # Schema adaptation: remove columns that don't exist in the current DB schema
@@ -124,7 +135,7 @@ def update_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
 def add_log(log: dict) -> None:
     """Insert into logs table. Ensure log_id and user_id exist."""
     user_id = log.get("user_id")
-    client = get_service_client() if not user_id else get_client()
+    client = get_service_client()
     try:
         if not log.get("log_id"):
             log["log_id"] = str(uuid.uuid4())
@@ -137,7 +148,7 @@ def add_log(log: dict) -> None:
 
 def get_logs(user_id: Optional[str] = None) -> List[dict]:
     """Fetch logs ordered by timestamp ascending."""
-    client = get_service_client() if not user_id else get_client()
+    client = get_service_client()
     try:
         query = client.table("logs").select("*").order("timestamp", desc=False)
         if user_id:
