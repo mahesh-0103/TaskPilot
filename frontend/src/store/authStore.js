@@ -67,10 +67,10 @@ const useAuthStore = create((set, get) => ({
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          scopes: 'email profile https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.send',
+          scopes: 'email profile https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/gmail.send',
           queryParams: {
-            access_type: 'offline', // Essential for refresh tokens
-            prompt: 'consent'       // Force consent to get refresh token every time
+            access_type: 'offline',
+            prompt: 'consent'
           },
           redirectTo: window.location.origin
         }

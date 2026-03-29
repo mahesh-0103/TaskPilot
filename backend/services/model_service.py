@@ -117,7 +117,7 @@ class ModelService:
             "3. No placeholders: Return real estimations for dates."
         )
 
-        max_retries = 3
+        max_retries = 2
         for attempt in range(max_retries + 1):
             try:
                 import httpx
@@ -127,15 +127,18 @@ class ModelService:
                     "Content-Type": "application/json"
                 }
                 payload = {
-                    "model": "mistral-large-latest",
+                    "model": "mistral-small-latest",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.1
                 }
                 
-                # Robust timeout for premium model
-                with httpx.Client(timeout=45.0) as client:
-                    logger.info(f"Mistral Dispatch (Attempt {attempt + 1})...")
+                # Faster model, faster timeout
+                with httpx.Client(timeout=25.0) as client:
+                    logger.info(f"Mistral Turbo Dispatch (Attempt {attempt + 1})...")
                     response = client.post("https://api.mistral.ai/v1/chat/completions", json=payload, headers=headers)
+                    if response.status_code == 429: # Rate limit
+                        time.sleep(1)
+                        continue
                     response.raise_for_status()
                     res_json = response.json()
                     
@@ -145,7 +148,6 @@ class ModelService:
                     content = choices[0].get("message", {}).get("content", "")
                     if not content: continue
                     
-                    # Robust parsing of JSON from markdown if exists
                     match = re.search(r"\[.*\]", content, re.DOTALL)
                     if match:
                         data = json.loads(match.group(0))
@@ -154,7 +156,7 @@ class ModelService:
                 
             except Exception as e:
                 logger.warning(f"Mistral attempt {attempt + 1} failed: {e}")
-                if attempt < max_retries: time.sleep(1.5 * (attempt + 1))
+                if attempt < max_retries: time.sleep(0.5)
         return []
 
     def predict_tasks_gemini(self, text: str) -> list:
