@@ -300,6 +300,16 @@ export default function Settings() {
                    {providerToken ? 'Connected' : 'Offline'}
                 </Badge>
               </div>
+
+              {!providerToken && (
+                <Button 
+                   variant="accent" 
+                   onClick={() => useAuthStore.getState().loginWithGoogle()}
+                   className="w-full h-14 rounded-2xl font-mono uppercase tracking-[0.2em] shadow-xl shadow-accent/20"
+                >
+                   Connect Workspace Identity
+                </Button>
+              )}
               
               <div className="space-y-4">
                 <p className="text-[12px] font-mono text-text-tertiary uppercase tracking-widest font-bold mb-2">Comms Relay</p>

@@ -96,14 +96,23 @@ def get_task_by_id(task_id: str, user_id: Optional[str] = None) -> Optional[dict
         return None
 
 def update_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
-    """Update rows using task_id. Update updated_at timestamp."""
+    """Update rows using task_id. Filter out non-existent schema columns."""
     client = get_service_client() if not user_id else get_client()
     ts = datetime.now(timezone.utc).isoformat()
+    
+    # Schema adaptation: remove columns that don't exist in the current DB schema
+    forbidden_cols = ["due_time", "is_checked", "notification_emails", "workflow_id", "calendar_event_id"] 
+    
     try:
         for task in tasks:
             task["updated_at"] = ts
-            if "task_id" in task:
-                query = client.table("tasks").update(task).eq("task_id", task["task_id"])
+            # Remove non-existent fields for the current schema version
+            clean_task = {k: v for k, v in task.items() if k not in forbidden_cols}
+            
+            if "task_id" in task: # Use original key to find the row
+                task_id = task["task_id"]
+                # Perform update only on allowed columns
+                query = client.table("tasks").update(clean_task).eq("task_id", task_id)
                 if user_id:
                     query = query.eq("user_id", user_id)
                 query.execute()

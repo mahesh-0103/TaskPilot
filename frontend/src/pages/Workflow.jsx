@@ -333,9 +333,10 @@ export default function Workflow() {
         </div>
 
         {/* Selected Task Side Panel Compensation */}
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {actualSelectedTask && (
             <TaskDetailPanel 
+              key={actualSelectedTask.task_id}
               task={actualSelectedTask} 
               onClose={() => setSelectedTask(null)}
             />
