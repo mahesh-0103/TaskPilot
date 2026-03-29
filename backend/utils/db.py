@@ -187,6 +187,19 @@ def insert_log(log):
 def get_all_logs() -> List[dict]:
     return get_logs()
 
+def delete_user_data(user_id: str) -> None:
+    """Purge all data (tasks and logs) from the system for a specific user."""
+    client = get_service_client()
+    try:
+        # Delete tasks
+        client.table("tasks").delete().eq("user_id", user_id).execute()
+        # Delete logs
+        client.table("logs").delete().eq("user_id", user_id).execute()
+        logger.info(f"System purge successful for user {user_id}")
+    except Exception as e:
+        logger.error(f"Error purging user data: {e}")
+        raise e
+
 def get_user_email(user_id: str) -> Optional[str]:
     """Fetch user email from profiles table."""
     client = get_service_client()

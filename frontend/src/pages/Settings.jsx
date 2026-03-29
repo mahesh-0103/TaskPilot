@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Divider, Badge } from '../components/ui/index.jsx';
 import { supabase } from '../lib/supabase';
+import { apiRequest } from '../lib/api';
 import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
 
@@ -59,6 +60,7 @@ function ToggleRow({ label, value, onChange, disabled }) {
 }
 
 export default function Settings() {
+  const queryClient = useQueryClient();
   const { user, profile, accent, theme, setAccent, setTheme, providerToken, updateProfile, loadProfile } = useAuthStore();
   const [displayName, setDisplayName] = useState('');
   const [avatarColor, setAvatarColor] = useState('#2563EB');
@@ -275,7 +277,26 @@ export default function Settings() {
           <Section title="Critical Actions" icon={Trash2}>
              <div className="space-y-6">
                 <p className="text-[13px] text-text-secondary leading-relaxed font-ui italic">Deleting your account will permanently remove all your tasks, notes, and activity logs.</p>
-                <Button variant="ghost" className="w-full h-14 border-danger/20 text-danger hover:bg-danger/10 font-mono uppercase tracking-widest text-[11px]">
+                <Button 
+                  variant="ghost" 
+                  className="w-full h-14 border-danger/20 text-danger hover:bg-danger/10 font-mono uppercase tracking-widest text-[11px]"
+                  onClick={async () => {
+                    if (!confirm('This action is IRREVERSIBLE. Purge all distributed node data and wipe your neural signature?')) return;
+                    if (!confirm('FINAL WARNING: All tasks, logs, and workflow states will be permanently deleted. Proceed?')) return;
+                    
+                    try {
+                      toast.loading('Initiating system purge...');
+                      await apiRequest(`/tasks/wipe/${user_id}`);
+                      
+                      // Refresh store
+                      queryClient.invalidateQueries(['tasks']);
+                      toast.success('System purged. Local nodes decommissioned.');
+                      window.location.reload(); // Hard reset to clear memory
+                    } catch (e) {
+                      toast.error('Purge protocol failed: ' + e.message);
+                    }
+                  }}
+                >
                    Delete Everything
                 </Button>
              </div>

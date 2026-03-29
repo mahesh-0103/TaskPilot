@@ -102,17 +102,20 @@ class ModelService:
         prompt = (
             "You are a strict, highly accurate 'Digital Chief of Staff'. Extract structured actionable items from this transcript.\n"
             "CRITICAL INSTRUCTIONS:\n"
-            "1. STRICTLY extract ONLY actionable tasks. IGNORE general statements, conversational filler, or project updates.\n"
-            "2. If a specific date is mentioned (e.g., 'April 5', 'next Friday'), calculate the precise YYYY-MM-DD date based on today's date (" + today + ").\n"
-            "3. Return ONLY a raw JSON array of objects. Do NOT use markdown formatting (no ```json). Start with [ and end with ].\n\n"
+            "1. STRICTLY extract ONLY actionable tasks. IGNORE general statements or updates.\n"
+            f"2. Resolve ALL relative dates to YYYY-MM-DD, using {today} as today's date.\n"
+            "   - 'Friday': Calculate the date of the upcoming Friday.\n"
+            "   - 'April 10': Resolve to the next occurring April 10th.\n"
+            "   - 'In 2 days': Add 2 days to the current date.\n"
+            "3. Return ONLY a raw JSON array. Start with [ and end with ].\n\n"
             f"Transcript:\n{text}\n\n"
-            "Fields for EACH object in the array:\n"
+            "Fields for EACH object:\n"
             "- task_id: uuid4 string\n"
-            "- task: full descriptive actionable sentence\n"
-            "- owner: capitalized first name of the person responsible\n"
-            "- deadline: YYYY-MM-DD string\n"
+            "- task: actionable directive string\n"
+            "- owner: first name or 'Strategy'\n"
+            "- deadline: YYYY-MM-DD string (Calculated accurately!)\n"
             "- priority: 'low', 'medium', or 'high'\n"
-            "- depends_on: [] array of task_id strings if this task relies on another extracted task.\n"
+            "- depends_on: [] array of task_id dependencies\n"
         )
 
         max_retries = 2
@@ -131,7 +134,7 @@ class ModelService:
                 }
                 
                 with httpx.Client(timeout=25.0) as client:
-                    logger.info(f"Mistral Turbo Dispatch (Attempt {attempt + 1})...")
+                    logger.info(f"Mistral extraction attempt {attempt + 1}...")
                     response = client.post("https://api.mistral.ai/v1/chat/completions", json=payload, headers=headers)
                     if response.status_code == 429:
                         time.sleep(1)
@@ -165,13 +168,13 @@ class ModelService:
             "You are a strict, highly accurate 'Autonomous Executive Assistant'. Extract structured actionable items from transcripts.\n"
             "CRITICAL INSTRUCTIONS:\n"
             "1. STRICTLY extract ONLY actionable tasks. IGNORE general statements or project updates.\n"
-            f"2. If a specific date is mentioned, calculate the precise YYYY-MM-DD date based on today's date ({today}).\n"
+            f"2. Resolve ALL relative dates (e.g., 'next Friday', 'April 5', 'in 3 days') to absolute YYYY-MM-DD format based on today's date: {today}.\n"
             "3. Return ONLY a raw JSON array. Start with [ end with ].\n"
             "Fields: task_id(uuid4), task, owner, deadline(YYYY-MM-DD), priority(low|medium|high), depends_on(array of task_ids).\n"
             "Rules for PRIORITY Prediction:\n"
-            "- HIGH: If task contains 'urgent', 'ASAP', 'blocker', 'critical', 'immediately', or is a blocking dependency.\n"
-            "- MEDIUM: Default for standard action items.\n"
-            "- LOW: For 'exploratory', 'minor', 'if time permits' or 'someday' tasks."
+            "- HIGH: If task contains 'urgent', 'ASAP', 'blocker', 'critical', 'immediately'.\n"
+            "- MEDIUM: Default.\n"
+            "- LOW: 'exploratory' or 'minor'."
         )
 
         client = get_gemini_client()

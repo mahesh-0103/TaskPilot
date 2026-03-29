@@ -54,3 +54,14 @@ def update_task_endpoint(task_id: str, body: dict):
         return {"status": "updated", "task_id": task_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Update failed: {e}")
+
+@router.post("/wipe/{user_id}")
+def wipe_user_data_endpoint(user_id: str):
+    """
+    Purge all tasks and logs for a user.
+    """
+    try:
+        db.delete_user_data(user_id)
+        return {"status": "purged", "user_id": user_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Wipe failed: {e}")
