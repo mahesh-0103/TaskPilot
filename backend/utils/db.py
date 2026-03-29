@@ -46,7 +46,7 @@ def save_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
     try:
         ts = datetime.now(timezone.utc).isoformat()
         # Schema adaptation: remove columns that don't exist in the current DB schema
-        forbidden_cols = ["due_time", "is_checked"] 
+        forbidden_cols = ["due_time", "is_checked", "notification_emails", "workflow_id", "calendar_event_id"] 
         
         sanitized_tasks = []
         for t in tasks:
