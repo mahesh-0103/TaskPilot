@@ -21,6 +21,11 @@ export default function Extract() {
   const [selectedTask, setSelectedTask] = useState(null);
   const navigate = useNavigate();
   const [extracted, setExtracted] = useState([]);
+  
+  useEffect(() => {
+    // Strategic state reset on mount to avoid stale manifests
+    setExtracted([]);
+  }, []);
 
   const handleExtract = async () => {
     if (!user) {
@@ -41,13 +46,19 @@ export default function Extract() {
       });
       
       const newTasks = Array.isArray(data?.tasks) ? data.tasks : [];
-      setExtracted(newTasks);
-      setTasks(newTasks);
-
       if (newTasks.length > 0) {
-        toast.success(`Matrix Manifested: ${newTasks.length} nodes added.`);
-        // Auto-navigate to workflow grid after successful extraction
-        setTimeout(() => navigate('/workflow'), 1500);
+        toast.promise(
+          new Promise(resolve => {
+            setTasks(newTasks);
+            setExtracted(newTasks);
+            setTimeout(resolve, 800);
+          }), 
+          {
+            loading: 'Committing Strategic Nodes...',
+            success: 'Nodes Manifested. Redirecting...',
+            error: 'Manifest failed'
+          }
+        ).then(() => navigate('/workflow'));
       } else {
         toast.error('Neural model returned no actionable intents.');
       }

@@ -27,8 +27,8 @@ export default function Workflow() {
 
   useEffect(() => {
     if (user?.id) {
-        console.log("Strategic node fetching initiated for:", user.id);
-        loadTasks(user.id);
+        // Efficiency: prioritizes store state from Extraction to avoid race conditions
+        loadTasks(user.id, false);
     }
   }, [user?.id]);
 

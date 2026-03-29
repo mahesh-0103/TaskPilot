@@ -117,44 +117,44 @@ class ModelService:
             "3. No placeholders: Return real estimations for dates."
         )
 
-        try:
-            import httpx
-            headers = {
-                "Authorization": f"Bearer {settings.MISTRAL_API_KEY.strip()}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "model": "mistral-large-latest",
-                "messages": [{"role": "user", "content": prompt}]
-            }
-            
-            # Use a robust 30s timeout for premium model
-            with httpx.Client(timeout=30.0) as client:
-                response = client.post("https://api.mistral.ai/v1/chat/completions", json=payload, headers=headers)
-                response.raise_for_status()
-                res_json = response.json()
+        max_retries = 3
+        for attempt in range(max_retries + 1):
+            try:
+                import httpx
+                import time
+                headers = {
+                    "Authorization": f"Bearer {settings.MISTRAL_API_KEY.strip()}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": "mistral-large-latest",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1
+                }
                 
-                # Safe key access
-                choices = res_json.get("choices")
-                if not choices or not isinstance(choices, list) or len(choices) == 0:
-                    logger.warning("Mistral returned empty choices.")
-                    return []
+                # Robust timeout for premium model
+                with httpx.Client(timeout=45.0) as client:
+                    logger.info(f"Mistral Dispatch (Attempt {attempt + 1})...")
+                    response = client.post("https://api.mistral.ai/v1/chat/completions", json=payload, headers=headers)
+                    response.raise_for_status()
+                    res_json = response.json()
                     
-                content = choices[0].get("message", {}).get("content", "")
-                if not content:
-                    logger.warning("Mistral returned empty content.")
-                    return []
+                    choices = res_json.get("choices")
+                    if not choices: continue
+                        
+                    content = choices[0].get("message", {}).get("content", "")
+                    if not content: continue
+                    
+                    # Robust parsing of JSON from markdown if exists
+                    match = re.search(r"\[.*\]", content, re.DOTALL)
+                    if match:
+                        data = json.loads(match.group(0))
+                        if isinstance(data, list): return data
+                        if isinstance(data, dict) and "tasks" in data: return data["tasks"]
                 
-                # Robust parsing of JSON from markdown if exists
-                match = re.search(r"\[.*\]", content, re.DOTALL)
-                if match:
-                    return json.loads(match.group(0))
-                
-                data = json.loads(content)
-                if isinstance(data, dict) and "tasks" in data: return data["tasks"]
-                if isinstance(data, list): return data
-        except Exception as e:
-            logger.warning(f"Mistral Error: {e}")
+            except Exception as e:
+                logger.warning(f"Mistral attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries: time.sleep(1.5 * (attempt + 1))
         return []
 
     def predict_tasks_gemini(self, text: str) -> list:

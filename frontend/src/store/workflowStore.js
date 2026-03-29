@@ -12,8 +12,14 @@ const useWorkflowStore = create((set, get) => ({
   setWorkflowTitle: (title) => set({ workflowTitle: title }),
 
   // Replaces the purely in-memory state with a Supabase fetch
-  loadTasks: async (userId) => {
+  loadTasks: async (userId, force = false) => {
     if (!userId) return;
+    
+    // Efficiency: Bypass DB fetch if tasks are already manifested in current session
+    if (get().tasks.length > 0 && !force) {
+        return;
+    }
+
     set({ isLoading: true });
     try {
       const { apiRequest } = await import('../lib/api');
