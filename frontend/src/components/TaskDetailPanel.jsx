@@ -15,7 +15,7 @@ import { apiRequest } from '../lib/api';
 
 export default function TaskDetailPanel({ task, onClose }) {
   const { user, providerToken } = useAuthStore();
-  const { tasks, loadTasks } = useWorkflowStore();
+  const { tasks, loadTasks, updateTask: updateStoreTask } = useWorkflowStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -23,10 +23,8 @@ export default function TaskDetailPanel({ task, onClose }) {
 
   const updateTask = async (updates) => {
     try {
-      const { error } = await supabase.from('tasks').update(updates).eq('task_id', task.task_id);
-      if (error) throw error;
+      await updateStoreTask(task.task_id, updates);
       toast.success('Matrix updated.');
-      await loadTasks();
     } catch (e) {
       toast.error('Transmission error: ' + e.message);
     }
@@ -145,6 +143,25 @@ export default function TaskDetailPanel({ task, onClose }) {
 
   const otherTasks = tasks.filter(t => t.task_id !== task.task_id);
 
+  const [taskLogs, setTaskLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      setLoadingLogs(true);
+      try {
+        const resp = await apiRequest('/logs');
+        const allLogs = resp.logs || [];
+        setTaskLogs(allLogs.filter(l => l.task_id === task.task_id).reverse());
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingLogs(false);
+      }
+    };
+    if (task?.task_id) fetchLogs();
+  }, [task.task_id]);
+
   return (
     <motion.div
       initial={{ x: '100%', opacity: 0.5 }}
@@ -153,7 +170,7 @@ export default function TaskDetailPanel({ task, onClose }) {
       transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       className="fixed right-0 top-0 h-screen w-full sm:w-[560px] bg-bg-surface/95 backdrop-blur-3xl border-l border-white/10 z-[100] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)]"
     >
-      {/* Header - Fixed */}
+      {/* Header - Fixed ... */}
       <div className="flex items-center justify-between p-8 sm:p-10 border-b border-white/5">
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[10px] text-accent tracking-[0.4em] uppercase font-bold">Node Telemetry</span>
@@ -164,7 +181,7 @@ export default function TaskDetailPanel({ task, onClose }) {
              onClick={() => setIsEditing(!isEditing)} 
              className={clsx("p-3 rounded-2xl transition-all border", isEditing ? "bg-accent text-white border-accent" : "hover:bg-white/5 border-white/10 text-text-tertiary")}
            >
-             <Share2 className="w-5 h-5" />
+              {isEditing ? <CheckCircle className="w-5 h-5" /> : <Terminal className="w-5 h-5" />}
            </button>
            <button onClick={onClose} className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-text-tertiary hover:text-text-primary transition-all">
              <X className="w-6 h-6" />
@@ -172,7 +189,6 @@ export default function TaskDetailPanel({ task, onClose }) {
         </div>
       </div>
 
-      {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto p-8 sm:p-10 space-y-12 scroll-thin">
         <section className="space-y-6">
           {isEditing ? (
@@ -220,6 +236,36 @@ export default function TaskDetailPanel({ task, onClose }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Button variant="ghost" className="h-14 rounded-2xl border-white/10 text-text-secondary hover:bg-white/5 text-[10px] uppercase font-mono tracking-widest" onClick={() => handleManualAction('reassign')}>Reassign Node</Button>
             <Button variant="ghost" className="h-14 rounded-2xl border-accent/20 text-accent hover:bg-accent/5 text-[10px] uppercase font-mono tracking-widest" onClick={() => handleManualAction('extend')}>Extend Deadline</Button>
+          </div>
+
+          {/* 🔍 Audit Timeline Section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+               <span className="font-mono text-[11px] text-accent tracking-[0.4em] uppercase font-bold">Audit Timeline</span>
+               {loadingLogs && <RefreshCw className="w-3 h-3 animate-spin text-accent" />}
+            </div>
+            <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1px] before:bg-white/10">
+              {taskLogs.length > 0 ? taskLogs.map((log, idx) => (
+                <div key={log.log_id} className="relative pl-10 group">
+                   <div className={clsx("absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-bg-surface flex items-center justify-center", 
+                     log.action.includes('Delay') ? "bg-danger" : log.action.includes('Escalation') ? "bg-accent" : "bg-success")}>
+                      <div className="w-1 h-1 bg-white rounded-full" />
+                   </div>
+                   <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <p className="text-[13px] font-medium text-text-primary capitalize">{log.action}</p>
+                        <span className="text-[9px] font-mono text-text-tertiary opacity-40">{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                      </div>
+                      <p className="text-[11px] text-text-tertiary leading-relaxed truncate">{log.reason}</p>
+                      <div className="hidden group-hover:block bg-white/5 p-2 rounded-lg mt-2">
+                        <p className="text-[9px] font-mono text-accent uppercase leading-tight tracking-tighter">{log.decision_trace}</p>
+                      </div>
+                   </div>
+                </div>
+              )) : (
+                <p className="text-[11px] font-mono text-text-tertiary opacity-30 italic pl-10">No audit nodes recorded for this directive.</p>
+              )}
+            </div>
           </div>
 
           <Divider className="opacity-40" />

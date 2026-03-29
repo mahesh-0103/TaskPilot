@@ -7,7 +7,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutGrid, List, Zap, RefreshCw, Trash2, Globe, Calendar as CalIcon, Mail, CheckCircle2, Share2, Clock
+  LayoutGrid, List, Zap, RefreshCw, Trash2, Globe, Calendar as CalIcon, Mail, CheckCircle2, Share2, Clock, AlertTriangle
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Button, Input, Badge, Divider } from '../components/ui/index.jsx';
@@ -20,7 +20,7 @@ import { apiRequest } from '../lib/api';
 
 export default function Workflow() {
   const { user, providerToken } = useAuthStore();
-  const { tasks, loadTasks } = useWorkflowStore();
+  const { tasks, loadTasks, updateTask: updateStoreTask } = useWorkflowStore();
   const [view, setView] = useState('grid'); 
   const [selectedTask, setSelectedTask] = useState(null);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -44,10 +44,10 @@ export default function Workflow() {
 
   const handleTaskUpdate = async (taskId, updates) => {
     try {
-       const { error } = await supabase.from('tasks').update(updates).eq('task_id', taskId);
-       if (error) throw error;
+       // Using optimistic update from store
+       await updateStoreTask(taskId, updates);
        toast.success('Directive Updated');
-       await loadTasks(); // Immediate refresh
+       
        if (selectedTask?.task_id === taskId) {
          setSelectedTask(prev => ({ ...prev, ...updates }));
        }
@@ -102,14 +102,17 @@ export default function Workflow() {
     data: { label: t.task },
     position: { x: 250 * (i % 3), y: 150 * Math.floor(i / 3) },
     style: { 
-      background: t.status === 'completed' ? '#10b98120' : t.status === 'delayed' ? '#ef444420' : '#2563eb20',
+      background: t.status === 'completed' ? '#10b98115' : t.status === 'delayed' ? '#ef444415' : '#3b82f615',
       color: 'white',
-      border: '1px solid rgba(255,255,255,0.1)',
-      borderRadius: '12px',
-      padding: '10px',
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      width: 200
+      border: `1px solid ${t.status === 'completed' ? '#10b98140' : t.status === 'delayed' ? '#ef444440' : '#3b82f640'}`,
+      borderRadius: '24px',
+      padding: '16px',
+      fontSize: '11px',
+      fontWeight: '500',
+      fontFamily: 'inherit',
+      width: 220,
+      backdropFilter: 'blur(10px)',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
     }
   })), [tasks]);
 
@@ -129,27 +132,66 @@ export default function Workflow() {
     [tasks, selectedTask]
   );
 
+  const [riskLevel, setRiskLevel] = useState('low');
+
+  useEffect(() => {
+    if (user?.id) {
+        loadTasks(user.id);
+        const fetchRisk = async () => {
+           try {
+              const res = await apiRequest(`/monitor/risk/${user.id}`);
+              setRiskLevel(res.level || 'low');
+           } catch (e) {
+              console.error(e);
+           }
+        };
+        fetchRisk();
+    }
+  }, [user]);
+
+  const handleExecuteWorkflow = async () => {
+    setIsExecuting(true);
+    try {
+      await apiRequest('/execution/execute-workflow', { 
+        user_id: user.id, 
+        token: providerToken 
+      });
+      toast.success('Sovereign Workflow Activated: Auto-scheduling complete.');
+      // Refresh tasks after scheduling
+      loadTasks(user.id);
+    } catch (e) {
+      toast.error('Activation Interrupted: ' + e.message);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-20 space-y-10 w-full">
       <header className="flex items-center justify-between flex-wrap gap-6 px-4">
         <div className="space-y-1">
-          <span className="font-mono text-[10px] text-text-tertiary tracking-[0.4em] uppercase font-bold">Workflow // Dispatches</span>
+          <span className="font-mono text-[10px] text-accent tracking-[0.4em] uppercase font-bold">Autonomous // Workflow</span>
           <h1 className="text-[42px] leading-tight font-display italic text-text-primary tracking-tight">Sovereign Grid</h1>
           <div className="flex gap-4 font-mono text-[9px] text-text-tertiary tracking-widest uppercase items-center">
-            <span>Cluster Stability: <span className="text-success font-bold">100%</span></span>
+            <span>Core Stability: <span className="text-success font-bold">100%</span></span>
             <span className="opacity-20">//</span>
-            <span>Latency: <span className="text-accent font-bold">12ms</span></span>
+            <span>Predictive Risk: <span className={clsx("font-bold", riskLevel === 'high' ? "text-danger" : riskLevel === 'medium' ? "text-warning" : "text-info")}>{riskLevel.toUpperCase()}</span></span>
           </div>
         </div>
         <div className="flex items-center gap-3">
-           <Button variant="ghost" onClick={handleExecute} disabled={isExecuting} className="h-10 px-5 rounded-lg bg-white/5 border border-white/5 font-mono text-[10px] uppercase tracking-widest hover:bg-white/10">
-              {isExecuting ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <Zap className="w-3.5 h-3.5 mr-2" />}
-              Execute Sequence
+           <Button 
+             variant="accent" 
+             onClick={handleExecuteWorkflow} 
+             disabled={isExecuting} 
+             className="h-12 px-8 rounded-2xl bg-accent text-white font-mono text-[11px] uppercase tracking-[0.3em] font-bold shadow-[0_15px_30px_rgba(37,99,235,0.3)] hover:scale-[1.05] active:scale-95 transition-all"
+           >
+              {isExecuting ? <RefreshCw className="w-4 h-4 animate-spin mr-3" /> : <Zap className="w-4 h-4 mr-3" />}
+              Execute Workflow
            </Button>
            <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 shadow-inner">
-             <button onClick={() => setView('grid')} className={clsx("p-2 rounded-lg transition-all", view === 'grid' ? "bg-accent text-white shadow-lg" : "text-text-tertiary hover:text-text-primary")}><LayoutGrid className="w-3.5 h-3.5" /></button>
-             <button onClick={() => setView('table')} className={clsx("p-2 rounded-lg transition-all", view === 'table' ? "bg-accent text-white shadow-lg" : "text-text-tertiary hover:text-text-primary")}><List className="w-3.5 h-3.5" /></button>
-             <button onClick={() => setView('network')} className={clsx("p-2 rounded-lg transition-all", view === 'network' ? "bg-accent text-white shadow-lg" : "text-text-tertiary hover:text-text-primary")}><Globe className="w-3.5 h-3.5" /></button>
+             <button onClick={() => setView('grid')} className={clsx("p-2 rounded-lg transition-all", view === 'grid' ? "bg-white/10 text-white shadow-lg" : "text-text-tertiary hover:text-text-primary")}><LayoutGrid className="w-3.5 h-3.5" /></button>
+             <button onClick={() => setView('table')} className={clsx("p-2 rounded-lg transition-all", view === 'table' ? "bg-white/10 text-white shadow-lg" : "text-text-tertiary hover:text-text-primary")}><List className="w-3.5 h-3.5" /></button>
+             <button onClick={() => setView('network')} className={clsx("p-2 rounded-lg transition-all", view === 'network' ? "bg-white/10 text-white shadow-lg" : "text-text-tertiary hover:text-text-primary")}><Globe className="w-3.5 h-3.5" /></button>
            </div>
         </div>
       </header>
@@ -172,9 +214,13 @@ export default function Workflow() {
                   <div className="space-y-4">
                     <div className="flex justify-between items-start">
                       <Badge variant={t.status} className="uppercase text-[8px] tracking-widest px-2 py-0.5">{t.status}</Badge>
-                       <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center font-mono text-[9px] text-text-secondary">
-                         {t.owner?.charAt(0).toUpperCase() || '?'}
-                      </div>
+                       <div className="flex -space-x-2">
+                         {t.owner?.split(',').map((o, idx) => (
+                           <div key={idx} className="w-7 h-7 rounded-lg bg-bg-surface border border-white/10 flex items-center justify-center font-mono text-[9px] text-text-secondary shadow-lg" title={o.trim()}>
+                             {o.trim().charAt(0).toUpperCase()}
+                           </div>
+                         ))}
+                       </div>
                     </div>
                     <h3 className="text-[16px] font-display italic text-text-primary leading-tight line-clamp-2 min-h-[40px] group-hover:text-accent transition-colors">{t.task}</h3>
                     
@@ -186,27 +232,50 @@ export default function Workflow() {
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 grid grid-cols-3 gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                  <div className="mt-4 pt-3 grid grid-cols-5 gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                      <button 
                        onClick={(e) => { e.stopPropagation(); handleTaskUpdate(t.task_id, { status: 'completed' }); }}
                        className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-success/10 group/btn transition-all"
+                       title="Mark as Completed"
                      >
                         <CheckCircle2 className="w-3.5 h-3.5 text-text-tertiary group-hover/btn:text-success" />
-                        <span className="text-[7px] font-mono uppercase tracking-widest text-text-tertiary">FINISH</span>
+                        <span className="text-[7px] font-mono uppercase tracking-widest text-text-tertiary">DONE</span>
+                     </button>
+                     <button 
+                       onClick={(e) => { e.stopPropagation(); handleTaskUpdate(t.task_id, { status: 'delayed' }); }}
+                       className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-danger/10 group/btn transition-all"
+                       title="Mark as Delayed"
+                     >
+                        <AlertTriangle className="w-3.5 h-3.5 text-text-tertiary group-hover/btn:text-danger" />
+                        <span className="text-[7px] font-mono uppercase tracking-widest text-text-tertiary">WAIT</span>
+                     </button>
+                     <button 
+                       onClick={(e) => { 
+                         e.stopPropagation(); 
+                         const newOwner = prompt('Reassign to operator:', t.owner);
+                         if (newOwner) handleTaskUpdate(t.task_id, { owner: newOwner });
+                       }}
+                       className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-accent/10 group/btn transition-all"
+                       title="Reassign Task"
+                     >
+                        <Share2 className="w-3.5 h-3.5 text-text-tertiary group-hover/btn:text-accent" />
+                        <span className="text-[7px] font-mono uppercase tracking-widest text-text-tertiary">OPER</span>
                      </button>
                      <button 
                         onClick={(e) => { e.stopPropagation(); handleSyncCalendar(t); }}
-                        className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-accent/10 group/btn transition-all"
+                        className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-white/10 group/btn transition-all"
+                        title="Sync to Calendar"
                      >
-                        <CalIcon className="w-3.5 h-3.5 text-text-tertiary group-hover/btn:text-accent" />
+                        <CalIcon className="w-3.5 h-3.5 text-text-tertiary group-hover/btn:text-white" />
                         <span className="text-[7px] font-mono uppercase tracking-widest text-text-tertiary">SYNC</span>
                      </button>
                      <button 
                        onClick={(e) => { e.stopPropagation(); handleSendEmail(t); }}
                        className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-info/10 group/btn transition-all"
+                       title="Send Escalation"
                      >
                         <Mail className="w-3.5 h-3.5 text-text-tertiary group-hover/btn:text-info" />
-                        <span className="text-[7px] font-mono uppercase tracking-widest text-text-tertiary">EMAIL</span>
+                        <span className="text-[7px] font-mono uppercase tracking-widest text-text-tertiary">MAIL</span>
                      </button>
                   </div>
                 </motion.div>

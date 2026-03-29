@@ -136,3 +136,38 @@ def simulate_delay(task_id: str, token: str = None) -> Log:
     )
     db.insert_log(log)
     return log
+def get_risk_assessment(user_id: str) -> dict:
+    """
+    PREDICTIVE DELAY DETECTION: Estimates risk based on:
+    - Task density (total pending)
+    - Bottleneck nodes (tasks with many dependents)
+    - Proximity to breaches
+    """
+    tasks = [t for t in db.get_all_tasks() if t.get("user_id") == user_id]
+    pending = [t for t in tasks if t.get("status") == "pending"]
+    if not pending: return {"score": 0, "level": "low"}
+    
+    # 1. Density risk
+    risk = len(pending) * 2
+    
+    # 2. Bottleneck risk
+    for t in pending:
+        deps = [other for other in tasks if t["task_id"] in (other.get("depends_on") or [])]
+        if len(deps) > 2:
+            risk += 10 # This is a bottleneck
+            
+    # 3. Proximity risk
+    now = datetime.now(timezone.utc).date()
+    for t in pending:
+        try:
+            dl = datetime.fromisoformat(t["deadline"]).date()
+            days_left = (dl - now).days
+            if days_left <= 1: risk += 15
+            elif days_left <= 3: risk += 5
+        except: pass
+        
+    return {
+        "score": risk,
+        "level": "high" if risk > 40 else "medium" if risk > 15 else "low",
+        "message": "Critical bottlenecks detected" if risk > 40 else "Standard operational risk"
+    }

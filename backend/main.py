@@ -28,10 +28,32 @@ app.include_router(execution.router, prefix="/execution", tags=["Execution"])
 app.include_router(calendar.router, prefix="/calendar", tags=["Calendar & Email"])
 
 
+import threading
+import time
+from services.monitoring_service import monitor_tasks
+from services.healing_service import run_healing_cycle
+
+def autonomous_loop():
+    """Background thread for continuous monitoring and healing."""
+    logger = logging.getLogger("AutonomousLoop")
+    logger.info("Autonomous Monitoring & Healing Loop Started.")
+    while True:
+        try:
+            logger.info("Running scheduled monitoring cycle...")
+            monitor_tasks() # Scans for delays/issues
+            logger.info("Running scheduled healing cycle...")
+            run_healing_cycle() # Heals detected issues
+        except Exception as e:
+            logger.error(f"Error in autonomous loop: {e}")
+        time.sleep(60)
+
 @app.on_event("startup")
 def startup_event():
     logger = logging.getLogger(__name__)
     logger.info("TaskPilot backend starting up...")
+    # Start the continuous monitoring loop in a background thread
+    thread = threading.Thread(target=autonomous_loop, daemon=True)
+    thread.start()
 
 
 @app.get("/", tags=["Health"])

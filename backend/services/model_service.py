@@ -160,16 +160,19 @@ class ModelService:
     def predict_tasks_gemini(self, text: str) -> list:
         today = datetime.date.today().isoformat()
         system_instruction = (
-            "You extract action items from meeting transcripts.\n"
+            "You are an 'Autonomous Executive Assistant'. Extract structured action items from transcripts.\n"
             "Return ONLY a raw JSON array. Start with [ end with ].\n"
-            "Each object must have exactly: task_id(uuid4), task(full action sentence), owner, deadline, priority."
+            "Fields: task_id(uuid4), task, owner, deadline(YYYY-MM-DD), priority(low|medium|high).\n"
+            "Rules for PRIORITY Prediction:\n"
+            "- HIGH: If task contains 'urgent', 'ASAP', 'blocker', 'critical', 'immediately', or is a blocking dependency.\n"
+            "- MEDIUM: Default for standard action items.\n"
+            "- LOW: For 'exploratory', 'minor', 'if time permits' or 'someday' tasks."
         )
 
         client = get_gemini_client()
         if not client:
             return []
 
-        # Reduce retries for live latency reduction
         max_retries = 1
         for attempt in range(max_retries + 1):
             try:

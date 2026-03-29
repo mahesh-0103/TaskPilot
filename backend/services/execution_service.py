@@ -9,6 +9,8 @@ from utils import db, helpers
 
 logger = logging.getLogger(__name__)
 
+from services import google_service
+
 def execute_tasks(tasks: List[Task]) -> List[Log]:
     """
     Step 7: Execute. 
@@ -65,4 +67,47 @@ def execute_tasks(tasks: List[Task]) -> List[Log]:
             db.insert_log(log_n)
             logs.append(log_n)
 
+    return logs
+
+def execute_entire_workflow(user_id: str, token: str = None) -> List[Log]:
+    """
+    ONE-CLICK EXECUTE: Schedules all pending tasks, logs the activation, and notifies.
+    """
+    ts = helpers.now_iso()
+    tasks_db = [t for t in db.get_all_tasks() if t.get("user_id") == user_id]
+    pending = [t for t in tasks_db if t.get("status") == "pending"]
+    logs = []
+    
+    # 1. Activation Log
+    activation_log = Log(
+        log_id=helpers.new_id(),
+        user_id=user_id,
+        action="Workflow Activated",
+        reason="One-click execution triggered by user",
+        timestamp=ts,
+        decision_trace="Initiating full-stack sequence: auto-scheduling + dispatches"
+    )
+    db.insert_log(activation_log)
+    logs.append(activation_log)
+
+    for task in pending:
+        # 2. Auto-Schedule to Calendar
+        if token:
+            event_id = google_service.create_calendar_event(token, task, auto_schedule=True)
+            if event_id:
+                db.update_task(task["task_id"], {"calendar_event_id": event_id})
+        
+        # 3. Execution Log for each task
+        log = Log(
+            log_id=helpers.new_id(),
+            user_id=user_id,
+            action="Dispatch Scheduled",
+            reason="Automated by workflow activation",
+            timestamp=ts,
+            task_id=task["task_id"],
+            decision_trace="Task scheduled in optimal calendar slot"
+        )
+        db.insert_log(log)
+        logs.append(log)
+        
     return logs

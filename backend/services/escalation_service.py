@@ -12,79 +12,73 @@ logger = logging.getLogger(__name__)
 
 def escalate_task(task_id: str, token: str = None):
     """
-    Perform escalation steps for an individual task.
-    1. Email the owner (John).
-    2. Notify dependent task owners (Sarah).
-    3. Push to secondary notification emails.
+    Perform smart multi-level escalation.
+    Level 1: Notify Owner
+    Level 2: Notify Dependents
+    Level 3: Critical Priority + Suggested Reassignment
+    Level 4: Managerial Escalation
     """
     task_row = db.get_task_by_id(task_id)
-    if not task_row:
-        return
+    if not task_row: return
 
-    ts = helpers.now_iso()
     user_id = task_row.get("user_id")
-    owner = task_row.get("owner")
     task_name = task_row.get("task")
-    deadline = task_row.get("deadline")
+    owner = task_row.get("owner")
     
-    # ── 1. Email John (the owner of the delayed task) ────────────────────────
-    # We try to find the email if user_id is linked to profiles
-    owner_email = None
-    if user_id:
+    # ── Determine Escalation Level ──
+    logs = db.get_all_logs()
+    task_escalations = [l for l in logs if l.get("task_id") == task_id and l.get("action") == "System Escalation"]
+    level = len(task_escalations) + 1
+    ts = helpers.now_iso()
+
+    action_taken = f"Level {level} Escalation"
+    decision_trace = f"Escalation count: {len(task_escalations)}"
+    
+    if level == 1:
+        # Level 1: Email Owner
         owner_email = db.get_user_email(user_id)
-    
-    if token and owner_email:
-        subject = f"🚨 TASKPILOT ALERT: Task Delayed - {task_name}"
-        message = f"Hello {owner},\n\nYour task '{task_name}' has exceeded its deadline ({deadline}).\nThe system is initiating recovery protocols."
-        google_service.send_email(token, owner_email, subject, message)
-    
-    # ── 2. Notify Sarah (Dependent task owners) ──────────────────────────────
-    # Sarah is someone who depends on this delayed task.
-    all_tasks = db.get_all_tasks()
-    dependents = [t for t in all_tasks if task_id in (t.get("depends_on") or [])]
-    
-    for dep in dependents:
-        dep_owner = dep.get("owner")
-        dep_user_id = dep.get("user_id")
-        dep_email = db.get_user_email(dep_user_id) if dep_user_id else None
+        if token and owner_email:
+            subject = f"🚨 LVL1 ALERT: {task_name} Delayed"
+            msg = f"Operator {owner},\n\nYour task '{task_name}' breached deadline. First warning logged."
+            google_service.send_email(token, owner_email, subject, msg)
+        decision_trace += " -> Action: Notify Owner"
         
-        if token and dep_email:
-            dep_subject = f"⚠️ UPSTREAM ALERT: {task_name} Delayed"
-            dep_msg = f"Hello {dep_owner},\n\nYour task '{dep.get('task')}' is currently blocked because its dependency '{task_name}' has been delayed.\nSystem is recalibrating."
-            google_service.send_email(token, dep_email, dep_subject, dep_msg)
-            
-        logger.info(f"Notifying dependent owner {dep_owner} about parent delay of {task_id}")
-        log = {
-            "log_id": helpers.new_id(),
-            "user_id": user_id,
-            "action": "Dependent notified",
-            "reason": f"Upstream task {task_id} delayed",
-            "timestamp": ts,
-            "task_id": dep.get("task_id"),
-            "decision_trace": f"Rule: parent {task_id} delayed → notify {dep_owner}"
-        }
-        db.insert_log(log)
+    elif level == 2:
+        # Level 2: Notify Dependents
+        all_tasks = db.get_all_tasks()
+        dependents = [t for t in all_tasks if task_id in (t.get("depends_on") or [])]
+        for dep in dependents:
+            dep_email = db.get_user_email(dep.get("user_id"))
+            if token and dep_email:
+                subject = f"⚠️ LVL2 UPSTREAM ALERT: {task_name} Blocked"
+                msg = f"Attention {dep.get('owner')},\n\nUpstream task '{task_name}' is delayed. Recalibrate dependent nodes."
+                google_service.send_email(token, dep_email, subject, msg)
+        decision_trace += " -> Action: Notify Dependents"
 
-    # ── 3. Notify secondary emails ───────────────────────────────────────────
-    secondary_emails = task_row.get("notification_emails") or []
-    if token and secondary_emails:
-        subject = f"⚠️ TaskPilot Escalation: {task_name}"
-        message = f"Escalation Report: Task '{task_name}' (Owner: {owner}) is officially DELAYED.\nAudit path: HEAL-PROTOCOL-DETECTION"
-        for email in secondary_emails:
-            google_service.send_email(token, email, subject, message)
+    elif level == 3:
+        # Level 3: Reassign + Critical
+        db.update_task(task_id, {"priority": "high", "owner": "AUTO-REASSIGN-PENDING"})
+        decision_trace += " -> Action: Priority -> HIGH + Reassign Flag"
 
-    # ── 4. Extend deadline (+1 day) as part of escalation ────────────────────
-    new_dl = helpers.extend_deadline(deadline, 1)
+    else:
+        # Level 4: Managerial/Final Warning
+        owner_email = db.get_user_email(user_id)
+        if token and owner_email:
+            subject = f"🛑 LVL4 CRITICAL: Managerial Escalation - {task_name}"
+            msg = f"FINAL ALERT: Task '{task_name}' has repeated delays. Escalated to project governance."
+            google_service.send_email(token, owner_email, subject, msg)
+        decision_trace += " -> Action: Managerial Alert"
+
+    # Always extend deadline slightly and log the level
+    new_dl = helpers.extend_deadline(task_row.get("deadline"), 1)
     db.update_task(task_id, {"deadline": new_dl, "status": "delayed", "updated_at": ts})
 
-    # Log escalation decision
-    log = {
+    db.insert_log({
         "log_id": helpers.new_id(),
         "user_id": user_id,
         "action": "System Escalation",
-        "reason": "Deadline breached",
+        "reason": f"Level {level} Threshold",
         "timestamp": ts,
         "task_id": task_id,
-        "decision_trace": "Action: Email owner + Notify dependents + Extend 1d"
-    }
-    db.insert_log(log)
+        "decision_trace": decision_trace
+    })
