@@ -32,7 +32,7 @@ export default function Monitor() {
     setIsScanning(true);
     try {
       // Step 3: Monitor runs. Inspects tasks, detects breaches, and triggers Step 5 (Escalation).
-      const res = await apiRequest('/monitor', { tasks, token: providerToken });
+      const res = await apiRequest('/monitor/', { tasks, token: providerToken });
       if (res.logs?.length > 0) {
         toast.success(`${res.logs.length} anomalies intercepted.`);
         loadTasks();

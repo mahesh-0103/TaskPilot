@@ -31,7 +31,7 @@ export default function SelfHeal() {
     setIsHealing(true);
     try {
       // Backend /healing applies rules to delayed tasks
-      const res = await apiRequest('/healing', { tasks });
+      const res = await apiRequest('/healing/', { tasks });
       if (res.healed_tasks?.length > 0) {
         toast.success(`${res.healed_tasks.length} temporal anomalies corrected.`);
         loadTasks();

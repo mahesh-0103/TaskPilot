@@ -39,7 +39,7 @@ export default function TaskDetailPanel({ task, onClose }) {
     const fetchLogs = async () => {
       setLoadingLogs(true);
       try {
-        const resp = await apiRequest('/logs', {}, 'GET');
+        const resp = await apiRequest('/logs/', {}, 'GET');
         const allLogs = resp?.logs || [];
         setTaskLogs(allLogs.filter(l => l.task_id === task.task_id).reverse().slice(0, 5));
       } catch (e) {

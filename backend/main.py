@@ -34,12 +34,15 @@ app.add_middleware(
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logging.error(f"GLOBAL_CRASH_DETAIL: {exc}\n{traceback.format_exc()}")
-    # We must ensure CORS headers are present even in this response
-    # Often, FastAPI's custom JSONResponse here will miss the middleware-injected headers
-    # So we inject them manually if needed, but normally middleware should handle if ordered correctly.
+    # Ensure CORS headers are present even in error responses to prevent "Network Error" in UI
     return JSONResponse(
         status_code=500,
         content={"detail": f"INTERNAL_SERVER_ERROR: {str(exc)}"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*"
+        }
     )
 
 app.include_router(tasks.router, prefix="/tasks", tags=["Task Extraction"])
