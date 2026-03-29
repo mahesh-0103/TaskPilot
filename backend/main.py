@@ -1,11 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from routes import tasks, workflow, monitor, healing, logs, execution, calendar
 import logging
+import traceback
+import threading
+import time
 
 logging.basicConfig(level=logging.INFO)
-
-from fastapi.middleware.gzip import GZipMiddleware
 
 app = FastAPI(
     title="TaskPilot – Autonomous Workflow Execution System",
@@ -13,15 +16,26 @@ app = FastAPI(
     version="1.0.0"
 )
 
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# 1. Global Exception Handler for Diagnostics
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.error(f"GLOBAL_CRASH: {exc}\n{traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"INTERNAL_SERVER_ERROR: {str(exc)}"},
+    )
 
+# 2. CORS Middleware (Outermost)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 3. GZIP Middleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.include_router(tasks.router, prefix="/tasks", tags=["Task Extraction"])
 app.include_router(workflow.router, prefix="/workflow", tags=["Workflow"])
@@ -31,9 +45,6 @@ app.include_router(logs.router, prefix="/logs", tags=["Audit Logs"])
 app.include_router(execution.router, prefix="/execution", tags=["Execution"])
 app.include_router(calendar.router, prefix="/calendar", tags=["Calendar & Email"])
 
-
-import threading
-import time
 from services.monitoring_service import monitor_tasks
 from services.healing_service import run_healing_cycle
 
@@ -59,11 +70,9 @@ def startup_event():
     thread = threading.Thread(target=autonomous_loop, daemon=True)
     thread.start()
 
-
 @app.get("/", tags=["Health"])
 def health_check():
     return {"status": "TaskPilot is running", "version": "1.0.0"}
-
 
 @app.get("/tasks", tags=["Task Extraction"])
 def get_all_tasks_endpoint():

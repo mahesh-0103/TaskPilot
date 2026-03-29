@@ -141,18 +141,28 @@ def _normalise_task(raw: dict) -> Task:
     ts = now_iso()
     # Use extend_deadline with 0 days to leverage its safe parsing/defaulting logic
     deadline = extend_deadline(raw.get("deadline") or "", days=0)
+    
+    # Strict validation to prevent Pydantic 500 errors
+    priority = raw.get("priority", "medium").lower() if isinstance(raw.get("priority"), str) else "medium"
+    if priority not in ("low", "medium", "high"):
+        priority = "medium"
+        
+    status = raw.get("status", "pending").lower() if isinstance(raw.get("status"), str) else "pending"
+    if status not in ("pending", "completed", "delayed"):
+        status = "pending"
+
     return Task(
-        task_id=raw.get("task_id") or new_id(),
-        task=raw.get("task", "Unnamed task"),
-        owner=raw.get("owner") or "unassigned",
+        task_id=str(raw.get("task_id") or new_id()),
+        task=str(raw.get("task", "Unnamed task")),
+        owner=str(raw.get("owner") or "unassigned"),
         deadline=deadline,
-        due_time=raw.get("due_time", "09:00"),
-        priority=raw.get("priority", "medium") if raw.get("priority") in ("low", "medium", "high") else "medium",
-        status=raw.get("status") or "pending",
+        due_time=str(raw.get("due_time", "09:00")),
+        priority=priority, # type: ignore
+        status=status, # type: ignore
         depends_on=raw.get("depends_on") or [],
         notification_emails=raw.get("notification_emails") or [],
-        created_at=raw.get("created_at", ts),
-        updated_at=raw.get("updated_at", ts),
+        created_at=str(raw.get("created_at", ts)),
+        updated_at=str(raw.get("updated_at", ts)),
     )
 
 
