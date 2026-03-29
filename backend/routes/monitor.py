@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from models.schemas import SimulateDelayRequest, SimulateDelayResponse, Task
 from services.monitoring_service import simulate_delay, monitor_tasks, get_risk_assessment
 from services import escalation_service
+from utils import db, helpers
 
 router = APIRouter()
 
@@ -22,8 +23,6 @@ def simulate_delay_endpoint(body: SimulateDelayRequest):
     Step 4/5: Manually trigger an issue detection and escalation sequence.
     """
     try:
-        # Step 4: Detect issue is implicit in call
-        # Step 5: Escalate
         escalation_service.escalate_task(body.task_id, body.token)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -45,9 +44,44 @@ def monitor_endpoint(body: dict):
         raise HTTPException(status_code=400, detail=f"Invalid payload: {exc}")
 
     try:
-        # Step 3, 4 and 5 are handled by monitor_tasks logic
         logs = monitor_tasks(tasks, token)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Monitoring protocol failure: {exc}")
 
     return {"logs": [l.model_dump() for l in logs]}
+
+
+@router.post("/self-heal/trigger")
+def trigger_self_heal(body: dict):
+    """
+    Immediately trigger self-healing for a specific delayed task.
+    Called when user manually flags a task as delayed via the UI.
+    """
+    task_id = body.get("task_id")
+    user_id = body.get("user_id")
+    
+    if not task_id:
+        raise HTTPException(status_code=400, detail="task_id is required.")
+    
+    try:
+        ts = helpers.now_iso()
+        
+        # Mark task for healing — reset to pending to re-enter the execution queue
+        db.update_task(task_id, {"status": "pending", "updated_at": ts})
+        
+        # Insert self-heal log entry
+        from models.schemas import Log
+        heal_log = Log(
+            log_id=helpers.new_id(),
+            user_id=user_id,
+            action="Self-Heal Triggered",
+            reason="User flagged task as delayed — autonomous remediation initiated",
+            timestamp=ts,
+            task_id=task_id,
+            decision_trace="Rule: status=delayed → reset to pending → re-queue for execution"
+        )
+        db.insert_log(heal_log)
+        
+        return {"status": "healing", "task_id": task_id, "message": "Self-heal protocol initiated. Task re-queued."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Self-heal failed: {e}")

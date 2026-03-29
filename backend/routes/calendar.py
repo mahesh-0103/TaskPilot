@@ -1,7 +1,5 @@
 """
 Calendar and Email integration routes.
-POST /calendar/push-task  — pushes task to Google Calendar
-POST /send-reminder       — sends Gmail reminder
 """
 
 import logging
@@ -23,11 +21,16 @@ class CreateEventRequest(BaseModel):
     end_time: str
     token: Optional[str] = None
 
+class DeleteEventRequest(BaseModel):
+    event_id: str
+    token: str
+
 class SendReminderRequest(BaseModel):
     task_id: str
     user_id: str
     email: str
     token: Optional[str] = None
+    custom_message: Optional[str] = None
 
 @router.post("/create-event")
 def create_event(body: CreateEventRequest, token: Optional[str] = None):
@@ -91,7 +94,35 @@ def create_event(body: CreateEventRequest, token: Optional[str] = None):
         raise HTTPException(status_code=500, detail=f"Calendar push failed: {e}")
 
 
-@router.post("/send-reminder")
+@router.post("/delete-event")
+def delete_event(body: DeleteEventRequest):
+    """
+    Remove a Google Calendar event. Called when a task is marked as complete.
+    """
+    if not body.token:
+        raise HTTPException(status_code=401, detail="Google Access Token required.")
+    if not body.event_id:
+        raise HTTPException(status_code=400, detail="event_id is required.")
+    
+    try:
+        import httpx
+        resp = httpx.delete(
+            f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{body.event_id}",
+            headers={"Authorization": f"Bearer {body.token}"},
+            timeout=10
+        )
+        # 204 = success, 404 = already deleted — both are fine
+        if resp.status_code not in (200, 204, 404):
+            raise HTTPException(status_code=resp.status_code, detail=f"Google API: {resp.text}")
+        
+        logger.info(f"Calendar event {body.event_id} deleted.")
+        return {"message": "Calendar event removed."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Calendar delete failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Calendar delete failed: {e}")
+
 def send_reminder(body: SendReminderRequest, token: Optional[str] = None):
     """
     Send a Gmail reminder for a task.
@@ -114,20 +145,34 @@ def send_reminder(body: SendReminderRequest, token: Optional[str] = None):
         deadline = task.get("deadline", "N/A")
         owner = task.get("owner", "Team")
 
-        msg_body = (
-            f"Hi {owner},\n\n"
-            f"This is a reminder for your task:\n\n"
-            f"Task: {task_name}\n"
-            f"Deadline: {deadline}\n"
-            f"Priority: {task.get('priority', 'medium')}\n"
-            f"Status: {task.get('status', 'pending')}\n\n"
-            f"Please ensure this is completed on time.\n\n"
-            f"— TaskPilot"
-        )
+        # Use custom message for reassignment, else standard reminder
+        if body.custom_message:
+            msg_body = (
+                f"Hi,\n\n"
+                f"{body.custom_message}\n\n"
+                f"Task Details:\n"
+                f"  Task: {task_name}\n"
+                f"  Deadline: {deadline}\n"
+                f"  Priority: {task.get('priority', 'medium')}\n\n"
+                f"— TaskPilot Autonomous Scheduler"
+            )
+            subject = f"[TaskPilot] Assignment: {task_name[:55]}"
+        else:
+            msg_body = (
+                f"Hi {owner},\n\n"
+                f"This is a reminder for your task:\n\n"
+                f"Task: {task_name}\n"
+                f"Deadline: {deadline}\n"
+                f"Priority: {task.get('priority', 'medium')}\n"
+                f"Status: {task.get('status', 'pending')}\n\n"
+                f"Please ensure this is completed on time.\n\n"
+                f"— TaskPilot"
+            )
+            subject = f"[TaskPilot] Reminder: {task_name[:60]}"
 
         msg = MIMEText(msg_body)
         msg["to"] = body.email
-        msg["subject"] = f"[TaskPilot] Reminder: {task_name[:60]}"
+        msg["subject"] = subject
 
         raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  X, Clock, Calendar, Shield, Zap, Terminal, 
-  Trash2, CheckCircle, AlertTriangle, ExternalLink,
-  Cpu, Share2, Archive, CheckCircle2, ChevronRight
+  X, Clock, Calendar, Terminal, 
+  Trash2, CheckCircle, AlertTriangle,
+  CheckCircle2, ChevronRight, Mail, RefreshCw, Send, User
 } from 'lucide-react';
 import { Badge, Button, Divider } from './ui/index.jsx';
 import { supabase } from '../lib/supabase';
@@ -14,153 +14,190 @@ import { clsx } from 'clsx';
 import { apiRequest } from '../lib/api';
 
 export default function TaskDetailPanel({ task, onClose }) {
-  const { user, providerToken } = useAuthStore();
-  const { tasks, loadTasks, updateTask: updateStoreTask } = useWorkflowStore();
+  const { user } = useAuthStore();
+  const { tasks, loadTasks, updateTask: updateStoreTask, removeTask } = useWorkflowStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editVal, setEditVal] = useState(task.task);
+  const [editVal, setEditVal] = useState(task?.task || '');
+
+  // Reassign state
+  const [showReassign, setShowReassign] = useState(false);
+  const [assigneeName, setAssigneeName] = useState(task?.owner || '');
+  const [assigneeEmail, setAssigneeEmail] = useState('');
+  const [isSendingMail, setIsSendingMail] = useState(false);
+
+  // Audit logs
+  const [taskLogs, setTaskLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  useEffect(() => {
+    if (!task?.task_id) return;
+    setEditVal(task.task || '');
+    setAssigneeName(task.owner || '');
+    
+    const fetchLogs = async () => {
+      setLoadingLogs(true);
+      try {
+        const resp = await apiRequest('/logs', {}, 'GET');
+        const allLogs = resp?.logs || [];
+        setTaskLogs(allLogs.filter(l => l.task_id === task.task_id).reverse().slice(0, 5));
+      } catch (e) {
+        // Non-critical, fail silently
+      } finally {
+        setLoadingLogs(false);
+      }
+    };
+    fetchLogs();
+  }, [task?.task_id]);
+
+  if (!task) return null;
 
   const updateTask = async (updates) => {
     try {
       await updateStoreTask(task.task_id, updates);
-      toast.success('Matrix updated.');
+      toast.success('Directive updated.');
     } catch (e) {
-      toast.error('Transmission error: ' + e.message);
+      toast.error('Update failed: ' + e.message);
     }
   };
 
+  // ── Mark as Completed + Remove Calendar Event ─────────────────────────────
+  const handleMarkComplete = async () => {
+    toast.promise(
+      (async () => {
+        await updateTask({ status: 'completed' });
+
+        // Remove from Google Calendar if event was previously synced
+        const { providerToken } = useAuthStore.getState();
+        if (providerToken && task.calendar_event_id) {
+          try {
+            await apiRequest('/calendar/delete-event', {
+              event_id: task.calendar_event_id,
+              token: providerToken
+            });
+          } catch (_) {
+            // Calendar deletion is best-effort
+          }
+        }
+      })(),
+      {
+        loading: 'Marking as complete...',
+        success: 'Task completed & calendar event removed.',
+        error: 'Could not mark complete.'
+      }
+    );
+  };
+
+  // ── Mark as Delayed + Trigger Self-Heal ───────────────────────────────────
+  const handleMarkDelayed = async () => {
+    toast.promise(
+      (async () => {
+        await updateTask({ status: 'delayed' });
+        // Trigger self-heal on the backend
+        await apiRequest('/self-heal/trigger', { task_id: task.task_id, user_id: user.id });
+      })(),
+      {
+        loading: 'Flagging as delayed...',
+        success: 'Delayed. Self-heal protocol initiated.',
+        error: 'Could not flag as delayed.'
+      }
+    );
+  };
+
+  // ── Reassign + Send Email ─────────────────────────────────────────────────
+  const handleReassign = async () => {
+    if (!assigneeName.trim()) {
+      toast.error('Assignee name is required.');
+      return;
+    }
+    setIsSendingMail(true);
+    try {
+      await updateTask({ owner: assigneeName });
+
+      if (assigneeEmail.trim()) {
+        const { providerToken } = useAuthStore.getState();
+        await apiRequest('/calendar/send-reminder', {
+          task_id: task.task_id,
+          user_id: user.id,
+          email: assigneeEmail.trim(),
+          token: providerToken,
+          custom_message: `You have been assigned the task: "${task.task}". Please ensure it is completed by ${task.deadline || 'the deadline'}.`
+        });
+        toast.success(`Reassigned to ${assigneeName} — reminder sent to ${assigneeEmail}`);
+      } else {
+        toast.success(`Reassigned to ${assigneeName}.`);
+      }
+      setShowReassign(false);
+    } catch (e) {
+      toast.error('Reassign failed: ' + e.message);
+    } finally {
+      setIsSendingMail(false);
+    }
+  };
+
+  // ── Delete Task ───────────────────────────────────────────────────────────
   const deleteTask = async () => {
     if (!confirm('Permanently decommission this directive?')) return;
     setIsDeleting(true);
     try {
-       const { error } = await supabase.from('tasks').delete().eq('task_id', task.task_id);
-       if (error) throw error;
-       toast.success('Node purged.');
-       await loadTasks();
-       onClose();
+      const { error } = await supabase.from('tasks').delete().eq('task_id', task.task_id);
+      if (error) throw error;
+      toast.success('Directive decommissioned.');
+      removeTask(task.task_id);
+      onClose();
     } catch (e) {
-       toast.error('Deletion failed.');
+      toast.error('Deletion failed: ' + e.message);
     } finally {
-       setIsDeleting(false);
+      setIsDeleting(false);
     }
   };
 
+  // ── Calendar Sync ─────────────────────────────────────────────────────────
   const handleSyncToCalendar = async () => {
+    const { providerToken } = useAuthStore.getState();
+    if (!providerToken) {
+      toast.error('Google integration offline. Reconnect in Settings.');
+      return;
+    }
     setIsSyncing(true);
     try {
       const datePart = task.deadline ? task.deadline.split('T')[0] : new Date().toISOString().split('T')[0];
-      const timePart = task.due_time || '09:00';
-      const startStr = `${datePart}T${timePart}:00Z`;
-      
+      const startStr = `${datePart}T09:00:00Z`;
       const d = new Date(startStr);
-      if (isNaN(d.getTime())) {
-        throw new Error('Neural date format is corrupt. Please re-select the deadline.');
-      }
+      if (isNaN(d.getTime())) throw new Error('Invalid deadline format.');
       const end = new Date(d.getTime() + 3600000).toISOString();
-      
+
       await apiRequest('/calendar/create-event', {
         task_id: task.task_id,
         user_id: user.id,
-        summary: task.task,
-        description: `Strategic Dispatch: ${task.task}`,
+        summary: `🚀 ${task.task}`,
+        description: `Owner: ${task.owner}\nPriority: ${task.priority}\n\nAutomated by TaskPilot.`,
         start_time: startStr,
         end_time: end,
         token: providerToken
       });
-      await loadTasks();
-      toast.success('Orbit Synchronized with Google Calendar');
+      loadTasks(user.id, true);
+      toast.success('Orbit synchronized with Google Calendar.');
     } catch (e) {
-      toast.error('Sync Intercepted: ' + e.message);
+      toast.error('Sync failed: ' + e.message);
     } finally {
       setIsSyncing(false);
     }
   };
 
+  // ── Dependency helpers ────────────────────────────────────────────────────
+  const otherTasks = tasks.filter(t => t.task_id !== task.task_id);
   const updateDependency = async (depId) => {
     if (!depId) return;
-    const currentDeps = Array.isArray(task.depends_on) ? task.depends_on : [];
-    if (currentDeps.includes(depId)) return;
-    const newDeps = [...currentDeps, depId];
-    await updateTask({ depends_on: newDeps });
+    const current = Array.isArray(task.depends_on) ? task.depends_on : [];
+    if (current.includes(depId)) return;
+    await updateTask({ depends_on: [...current, depId] });
   };
-
   const removeDependency = async (depId) => {
-    const currentDeps = Array.isArray(task.depends_on) ? task.depends_on : [];
-    const newDeps = currentDeps.filter(id => id !== depId);
-    await updateTask({ depends_on: newDeps });
+    const current = Array.isArray(task.depends_on) ? task.depends_on : [];
+    await updateTask({ depends_on: current.filter(id => id !== depId) });
   };
-
-  const handleManualAction = async (type) => {
-    try {
-      if (type === 'reassign') {
-        const newOwner = prompt('Reassign strategic node to operator:', task.owner);
-        if (newOwner) await updateTask({ owner: newOwner });
-      } else if (type === 'delay') {
-        await updateTask({ status: 'delayed' });
-      } else if (type === 'completed') {
-        await updateTask({ status: 'completed' });
-      } else if (type === 'extend') {
-        const current = new Date(task.deadline ? task.deadline.split('T')[0] : Date.now());
-        const extended = new Date(current.getTime() + (24 * 60 * 60 * 1000)).toISOString().split('T')[0];
-        await updateTask({ deadline: extended });
-      }
-    } catch (e) {
-      toast.error('Directive Update Failed');
-    }
-  };
-
-  const handleSendEmail = async () => {
-    if (!task.notification_emails || task.notification_emails.length === 0) {
-      toast.error('No notification receptors assigned.');
-      return;
-    }
-    toast.loading('Transmitting escalation sequence...', { id: 'email-tx' });
-    try {
-      await apiRequest('/monitor/simulate-delay', { 
-        task_id: task.task_id, 
-        token: providerToken 
-      });
-      toast.success('Escalation Received & Logged.', { id: 'email-tx' });
-      await loadTasks();
-    } catch (e) {
-      toast.error('Transmission Failure: ' + e.message, { id: 'email-tx' });
-    }
-  };
-
-  const addEmail = (email) => {
-    if (!email || !email.includes('@')) return;
-    const current = Array.isArray(task.notification_emails) ? task.notification_emails : [];
-    if (!current.includes(email)) {
-      updateTask({ notification_emails: [...current, email] });
-    }
-  };
-
-  const removeEmail = (email) => {
-    const current = Array.isArray(task.notification_emails) ? task.notification_emails : [];
-    updateTask({ notification_emails: current.filter(e => e !== email) });
-  };
-
-  const otherTasks = tasks.filter(t => t.task_id !== task.task_id);
-
-  const [taskLogs, setTaskLogs] = useState([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
-
-  useEffect(() => {
-    const fetchLogs = async () => {
-      setLoadingLogs(true);
-      try {
-        const resp = await apiRequest('/logs');
-        const allLogs = resp.logs || [];
-        setTaskLogs(allLogs.filter(l => l.task_id === task.task_id).reverse());
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoadingLogs(false);
-      }
-    };
-    if (task?.task_id) fetchLogs();
-  }, [task.task_id]);
 
   return (
     <motion.div
@@ -168,226 +205,242 @@ export default function TaskDetailPanel({ task, onClose }) {
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0 }}
       transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-      className="fixed right-0 top-0 h-screen w-full sm:w-[560px] bg-bg-surface/95 backdrop-blur-3xl border-l border-white/10 z-[100] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)]"
+      className="fixed right-0 top-0 h-screen w-full sm:w-[540px] bg-bg-surface/98 backdrop-blur-3xl border-l border-white/10 z-[100] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.8)]"
     >
-      {/* Header - Fixed ... */}
-      <div className="flex items-center justify-between p-8 sm:p-10 border-b border-white/5">
+      {/* Header */}
+      <div className="flex items-center justify-between p-8 border-b border-white/5">
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[10px] text-accent tracking-[0.4em] uppercase font-bold">Node Telemetry</span>
-          <span className="font-mono text-[9px] text-text-tertiary opacity-40 uppercase tracking-widest">{task.task_id}</span>
+          <span className="font-mono text-[8px] text-text-tertiary opacity-30 uppercase tracking-widest truncate max-w-[200px]">{task.task_id}</span>
         </div>
         <div className="flex items-center gap-3">
-           <button 
-             onClick={() => setIsEditing(!isEditing)} 
-             className={clsx("p-3 rounded-2xl transition-all border", isEditing ? "bg-accent text-white border-accent" : "hover:bg-white/5 border-white/10 text-text-tertiary")}
-           >
-              {isEditing ? <CheckCircle className="w-5 h-5" /> : <Terminal className="w-5 h-5" />}
-           </button>
-           <button onClick={onClose} className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-text-tertiary hover:text-text-primary transition-all">
-             <X className="w-6 h-6" />
-           </button>
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className={clsx("p-3 rounded-2xl transition-all border", isEditing ? "bg-accent text-white border-accent" : "hover:bg-white/5 border-white/10 text-text-tertiary")}
+            title="Edit task"
+          >
+            <Terminal className="w-5 h-5" />
+          </button>
+          <button onClick={onClose} className="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-text-tertiary hover:text-text-primary transition-all">
+            <X className="w-6 h-6" />
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 sm:p-10 space-y-12 scroll-thin">
-        <section className="space-y-6">
+      <div className="flex-1 overflow-y-auto p-8 space-y-8 scroll-thin">
+        {/* Title */}
+        <section>
           {isEditing ? (
-             <div className="space-y-4">
-                <textarea 
-                  value={editVal}
-                  onChange={e => setEditVal(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-[20px] font-display italic text-text-primary focus:border-accent outline-none shadow-inner"
-                  rows={4}
-                />
-                <div className="flex gap-3">
-                  <Button variant="accent" onClick={() => { updateTask({ task: editVal }); setIsEditing(false); }}>Commit Changes</Button>
-                  <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
-                </div>
-             </div>
+            <div className="space-y-4">
+              <textarea
+                value={editVal}
+                onChange={e => setEditVal(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-[18px] font-display italic text-text-primary focus:border-accent outline-none shadow-inner"
+                rows={3}
+              />
+              <div className="flex gap-3">
+                <Button variant="accent" onClick={() => { updateTask({ task: editVal }); setIsEditing(false); }}>Commit</Button>
+                <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
+              </div>
+            </div>
           ) : (
-             <h2 className="text-[32px] leading-tight font-display italic text-text-primary tracking-tight">
-               {task.task}
-             </h2>
+            <h2 className="text-[28px] leading-tight font-display italic text-text-primary tracking-tight">{task.task}</h2>
           )}
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-4">
             <Badge variant={task.status} className="px-3 py-1 uppercase text-[10px] tracking-[0.2em]">{task.status}</Badge>
             <Badge variant="ghost" className="px-3 py-1 uppercase text-[10px] tracking-[0.2em] border-white/5 bg-white/5">{task.priority} Priority</Badge>
           </div>
         </section>
 
-        <div className="space-y-10">
-          <div className="grid grid-cols-2 gap-4">
-            <button 
-               onClick={() => handleManualAction('completed')}
-               className="h-20 rounded-[28px] border border-success/20 bg-success/5 flex flex-col items-center justify-center gap-2 hover:bg-success/10 transition-all group scale-100 hover:scale-[1.02] active:scale-95"
+        {/* Primary Actions */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={handleMarkComplete}
+            className="h-20 rounded-[24px] border border-success/20 bg-success/5 flex flex-col items-center justify-center gap-2 hover:bg-success/10 transition-all active:scale-95"
+          >
+            <CheckCircle2 className="w-6 h-6 text-success" />
+            <span className="text-[10px] font-mono uppercase tracking-widest text-success font-bold">Mark Done</span>
+          </button>
+          <button
+            onClick={handleMarkDelayed}
+            className="h-20 rounded-[24px] border border-danger/20 bg-danger/5 flex flex-col items-center justify-center gap-2 hover:bg-danger/10 transition-all active:scale-95"
+          >
+            <AlertTriangle className="w-6 h-6 text-danger" />
+            <span className="text-[10px] font-mono uppercase tracking-widest text-danger font-bold">Flag Delayed</span>
+          </button>
+        </div>
+
+        {/* Reassign Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[11px] text-text-tertiary tracking-[0.4em] uppercase font-bold">Reassign & Notify</span>
+            <button
+              onClick={() => setShowReassign(!showReassign)}
+              className={clsx("text-[10px] font-mono uppercase tracking-widest px-4 py-2 rounded-xl border transition-all", showReassign ? "border-accent text-accent bg-accent/10" : "border-white/10 text-text-tertiary hover:border-accent/40")}
             >
-               <CheckCircle2 className="w-6 h-6 text-success" />
-               <span className="text-[10px] font-mono uppercase tracking-widest text-success font-bold">COMPLETED</span>
-            </button>
-            <button 
-               onClick={() => handleManualAction('delay')}
-               className="h-20 rounded-[28px] border border-danger/20 bg-danger/5 flex flex-col items-center justify-center gap-2 hover:bg-danger/10 transition-all group scale-100 hover:scale-[1.02] active:scale-95"
-            >
-               <AlertTriangle className="w-6 h-6 text-danger" />
-               <span className="text-[10px] font-mono uppercase tracking-widest text-danger font-bold">DELAYED</span>
+              {showReassign ? 'Cancel' : 'Reassign'}
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Button variant="ghost" className="h-14 rounded-2xl border-white/10 text-text-secondary hover:bg-white/5 text-[10px] uppercase font-mono tracking-widest" onClick={() => handleManualAction('reassign')}>Reassign Node</Button>
-            <Button variant="ghost" className="h-14 rounded-2xl border-accent/20 text-accent hover:bg-accent/5 text-[10px] uppercase font-mono tracking-widest" onClick={() => handleManualAction('extend')}>Extend Deadline</Button>
-          </div>
-
-          {/* 🔍 Audit Timeline Section */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-               <span className="font-mono text-[11px] text-accent tracking-[0.4em] uppercase font-bold">Audit Timeline</span>
-               {loadingLogs && <RefreshCw className="w-3 h-3 animate-spin text-accent" />}
+          {!showReassign && (
+            <div className="flex items-center gap-3 px-1">
+              <div className="w-8 h-8 rounded-xl bg-accent/20 flex items-center justify-center font-mono text-[11px] text-accent font-bold">
+                {task.owner?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+              <span className="text-[14px] text-text-secondary font-medium">{task.owner || 'Unassigned'}</span>
             </div>
-            <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1px] before:bg-white/10">
-              {taskLogs.length > 0 ? taskLogs.map((log, idx) => (
-                <div key={log.log_id} className="relative pl-10 group">
-                   <div className={clsx("absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-bg-surface flex items-center justify-center", 
-                     log.action.includes('Delay') ? "bg-danger" : log.action.includes('Escalation') ? "bg-accent" : "bg-success")}>
-                      <div className="w-1 h-1 bg-white rounded-full" />
-                   </div>
-                   <div className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <p className="text-[13px] font-medium text-text-primary capitalize">{log.action}</p>
-                        <span className="text-[9px] font-mono text-text-tertiary opacity-40">{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                      </div>
-                      <p className="text-[11px] text-text-tertiary leading-relaxed truncate">{log.reason}</p>
-                      <div className="hidden group-hover:block bg-white/5 p-2 rounded-lg mt-2">
-                        <p className="text-[9px] font-mono text-accent uppercase leading-tight tracking-tighter">{log.decision_trace}</p>
-                      </div>
-                   </div>
-                </div>
-              )) : (
-                <p className="text-[11px] font-mono text-text-tertiary opacity-30 italic pl-10">No audit nodes recorded for this directive.</p>
-              )}
-            </div>
-          </div>
+          )}
 
-          <Divider className="opacity-40" />
-
-          {/* Temporal Axis Section */}
-          <div className="space-y-4">
-             <span className="font-mono text-[11px] text-text-tertiary tracking-[0.4em] uppercase font-bold">Temporal Plane</span>
-             <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                   <p className="text-[9px] font-mono text-text-tertiary opacity-40 uppercase tracking-widest ml-1">Deadline Date</p>
-                   <input 
-                     type="date"
-                     value={task.deadline ? task.deadline.split('T')[0] : ''}
-                     onChange={(e) => updateTask({ deadline: e.target.value })}
-                     className="max-h-14 w-full px-5 rounded-2xl border border-white/10 font-mono text-[13px] text-text-primary bg-white/[0.03] outline-none focus:border-accent transition-all"
-                   />
-                </div>
-                <div className="space-y-2">
-                   <p className="text-[9px] font-mono text-text-tertiary opacity-40 uppercase tracking-widest ml-1">Daily Epoch</p>
-                   <input 
-                     type="time"
-                     value={task.due_time || '09:00'}
-                     onChange={(e) => updateTask({ due_time: e.target.value })}
-                     className="max-h-14 w-full px-5 rounded-2xl border border-white/10 font-mono text-[13px] text-text-primary bg-white/[0.03] outline-none focus:border-accent transition-all"
-                   />
-                </div>
-             </div>
-          </div>
-
-          {/* Dependencies Section */}
-          <div className="space-y-4">
-             <span className="font-mono text-[11px] text-text-tertiary tracking-[0.4em] uppercase font-bold">Sovereign Dependencies</span>
-             <div className="space-y-4">
-                {(task.depends_on || []).length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {(task.depends_on || []).map(depId => {
-                      const depTask = tasks.find(t => t.task_id === depId);
-                      return (
-                        <Badge key={depId} variant="info" className="gap-2 p-2 px-4 rounded-xl border border-accent/20 bg-accent/5 max-w-full">
-                          <span className="truncate text-[12px]">{depTask ? depTask.task : depId}</span>
-                          <X className="w-4 h-4 cursor-pointer hover:text-danger flex-shrink-0 transition-colors" onClick={() => removeDependency(depId)} />
-                        </Badge>
-                      );
-                    })}
+          <AnimatePresence>
+            {showReassign && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-4 overflow-hidden"
+              >
+                <div className="space-y-3">
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+                    <input
+                      type="text"
+                      placeholder="Assignee name..."
+                      value={assigneeName}
+                      onChange={e => setAssigneeName(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-11 pr-5 py-4 text-[14px] font-mono outline-none focus:border-accent transition-all text-text-primary"
+                    />
                   </div>
-                )}
-                <div className="relative group/select">
-                  <select 
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-5 text-[13px] font-mono text-text-secondary outline-none focus:border-accent cursor-pointer appearance-none transition-all hover:bg-white/[0.05]"
-                    onChange={(e) => updateDependency(e.target.value)}
-                    value=""
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+                    <input
+                      type="email"
+                      placeholder="Email address (sends reminder automatically)..."
+                      value={assigneeEmail}
+                      onChange={e => setAssigneeEmail(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-11 pr-5 py-4 text-[14px] font-mono outline-none focus:border-accent transition-all text-text-primary"
+                    />
+                  </div>
+                  <Button
+                    variant="accent"
+                    onClick={handleReassign}
+                    disabled={isSendingMail}
+                    className="w-full h-12 rounded-2xl font-mono text-[11px] uppercase tracking-widest"
                   >
-                    <option value="" disabled className="bg-bg-surface text-text-tertiary">Select Preceding Node...</option>
-                    {otherTasks.filter(t => !(task.depends_on || []).includes(t.task_id)).map(t => (
-                      <option key={t.task_id} value={t.task_id} className="bg-bg-surface text-text-primary py-4">
-                        {t.task.slice(0, 80)}{t.task.length > 80 ? '...' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-text-tertiary group-hover/select:text-accent transition-all rotate-90" />
+                    {isSendingMail ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                    {assigneeEmail ? 'Reassign & Send Email' : 'Reassign'}
+                  </Button>
                 </div>
-             </div>
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-          {/* Notifications Section */}
-          <div className="space-y-4">
-             <span className="font-mono text-[11px] text-text-tertiary tracking-[0.4em] uppercase font-bold">Notification Receptors</span>
-             <div className="space-y-4">
-                {(task.notification_emails || []).length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {(task.notification_emails || []).map(email => (
-                      <Badge key={email} variant="ghost" className="gap-2 p-2 px-4 rounded-xl border-white/10 bg-white/5 text-[12px]">
-                        {email}
-                        <X className="w-4 h-4 cursor-pointer hover:text-danger flex-shrink-0 transition-colors" onClick={() => removeEmail(email)} />
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <div className="relative">
-                   <input 
-                    type="email"
-                    placeholder="Add receptor email..."
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-5 text-[13px] font-mono outline-none focus:border-accent transition-all"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.target.value) {
-                         addEmail(e.target.value);
-                         e.target.value = '';
-                      }
-                    }}
-                  />
-                  <div className="absolute right-6 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-tertiary opacity-40 uppercase tracking-widest hidden sm:block">Press Enter</div>
-                </div>
-             </div>
+        <Divider className="opacity-30" />
+
+        {/* Temporal Axis */}
+        <div className="space-y-4">
+          <span className="font-mono text-[11px] text-text-tertiary tracking-[0.4em] uppercase font-bold">Temporal Plane</span>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <p className="text-[9px] font-mono text-text-tertiary opacity-40 uppercase tracking-widest ml-1">Deadline Date</p>
+              <input
+                type="date"
+                value={task.deadline ? task.deadline.split('T')[0] : ''}
+                onChange={(e) => updateTask({ deadline: e.target.value })}
+                className="w-full h-12 px-4 rounded-2xl border border-white/10 font-mono text-[13px] text-text-primary bg-white/[0.03] outline-none focus:border-accent transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-[9px] font-mono text-text-tertiary opacity-40 uppercase tracking-widest ml-1">Priority</p>
+              <select
+                value={task.priority || 'medium'}
+                onChange={(e) => updateTask({ priority: e.target.value })}
+                className="w-full h-12 px-4 rounded-2xl border border-white/10 font-mono text-[13px] text-text-primary bg-bg-surface outline-none focus:border-accent transition-all"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
           </div>
         </div>
+
+        {/* Dependencies */}
+        <div className="space-y-4">
+          <span className="font-mono text-[11px] text-text-tertiary tracking-[0.4em] uppercase font-bold">Dependencies</span>
+          {(task.depends_on || []).length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {(task.depends_on || []).map(depId => {
+                const depTask = tasks.find(t => t.task_id === depId);
+                return (
+                  <Badge key={depId} variant="info" className="gap-2 p-2 px-3 rounded-xl border border-accent/20 bg-accent/5 text-[11px]">
+                    <span className="truncate max-w-[160px]">{depTask ? depTask.task : depId}</span>
+                    <X className="w-3 h-3 cursor-pointer hover:text-danger flex-shrink-0" onClick={() => removeDependency(depId)} />
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+          <div className="relative">
+            <select
+              className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-[13px] font-mono text-text-secondary outline-none focus:border-accent cursor-pointer appearance-none transition-all hover:bg-white/[0.05]"
+              onChange={(e) => updateDependency(e.target.value)}
+              value=""
+            >
+              <option value="" disabled>Add preceding node...</option>
+              {otherTasks.filter(t => !(task.depends_on || []).includes(t.task_id)).map(t => (
+                <option key={t.task_id} value={t.task_id} className="bg-bg-surface text-text-primary">
+                  {t.task.slice(0, 80)}{t.task.length > 80 ? '...' : ''}
+                </option>
+              ))}
+            </select>
+            <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-text-tertiary rotate-90 w-4 h-4" />
+          </div>
+        </div>
+
+        {/* Audit Timeline */}
+        {taskLogs.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[11px] text-accent tracking-[0.4em] uppercase font-bold">Audit Timeline</span>
+              {loadingLogs && <RefreshCw className="w-3 h-3 animate-spin text-accent" />}
+            </div>
+            <div className="space-y-4 relative before:absolute before:left-[10px] before:top-2 before:bottom-2 before:w-[1px] before:bg-white/10">
+              {taskLogs.map((log) => (
+                <div key={log.log_id} className="relative pl-9">
+                  <div className={clsx("absolute left-0 top-1.5 w-5 h-5 rounded-full border-2 border-bg-surface flex items-center justify-center",
+                    log.action?.toLowerCase().includes('delay') ? "bg-danger" : log.action?.toLowerCase().includes('heal') ? "bg-accent" : "bg-success")}>
+                    <div className="w-1 h-1 bg-white rounded-full" />
+                  </div>
+                  <p className="text-[13px] font-medium text-text-primary capitalize">{log.action}</p>
+                  <p className="text-[10px] text-text-tertiary opacity-60 mt-0.5">{new Date(log.timestamp).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Footer - Fixed */}
-      <div className="p-8 sm:p-10 border-t border-white/5 bg-bg-surface/50 backdrop-blur-xl flex flex-col gap-4">
-         <Button 
-           variant="accent" 
-           onClick={handleSyncToCalendar} 
-           disabled={isSyncing} 
-           className="h-16 font-mono text-[12px] uppercase tracking-[0.3em] font-bold shadow-[0_20px_40px_rgba(37,99,235,0.2)] hover:shadow-accent/40 scale-100 hover:scale-[1.01] active:scale-95 transition-all"
-         >
-           🛰️ Synchronize Orbit
-         </Button>
-         <Button 
-           variant="ghost" 
-           onClick={handleSendEmail} 
-           className="h-16 font-mono text-[12px] uppercase tracking-[0.3em] font-bold border-white/10 hover:bg-white/5 transition-all"
-         >
-           📡 Transmit Recall Signal
-         </Button>
-         
-         <button 
-           onClick={deleteTask}
-           disabled={isDeleting}
-           className="mt-4 flex items-center justify-center gap-3 text-[10px] font-mono uppercase tracking-[0.4em] text-text-tertiary hover:text-danger transition-all py-2 opacity-40 hover:opacity-100"
-         >
-           <Trash2 className="w-4 h-4" /> Decommission Directive
-         </button>
+      {/* Footer */}
+      <div className="p-8 border-t border-white/5 bg-bg-surface/50 backdrop-blur-xl flex flex-col gap-3">
+        <Button
+          variant="accent"
+          onClick={handleSyncToCalendar}
+          disabled={isSyncing}
+          className="h-14 font-mono text-[11px] uppercase tracking-[0.3em] font-bold shadow-[0_20px_40px_rgba(37,99,235,0.2)] hover:scale-[1.01] active:scale-95 transition-all"
+        >
+          {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Calendar className="w-4 h-4 mr-2" />}
+          Synchronize to Calendar
+        </Button>
+
+        <button
+          onClick={deleteTask}
+          disabled={isDeleting}
+          className="flex items-center justify-center gap-3 text-[10px] font-mono uppercase tracking-[0.4em] text-text-tertiary hover:text-danger transition-all py-2 opacity-40 hover:opacity-100"
+        >
+          <Trash2 className="w-4 h-4" /> Decommission Directive
+        </button>
       </div>
     </motion.div>
   );
