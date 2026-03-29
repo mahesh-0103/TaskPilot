@@ -172,7 +172,7 @@ export default function Workflow() {
         <div className="space-y-1">
           <span className="font-mono text-[10px] text-accent tracking-[0.4em] uppercase font-bold">Auto-Pilot // Systems</span>
           <h1 className="text-[42px] leading-tight font-display italic text-text-primary tracking-tight">Tasks Dashboard</h1>
-          <div className="flex gap-4 font-mono text-[9px] text-text-tertiary tracking-widest uppercase items-center">
+          <div className="flex gap-4 font-mono text-[9px] text-text-secondary tracking-widest uppercase items-center">
             <span>System Health: <span className="text-success font-bold">100%</span></span>
             <span className="opacity-20">//</span>
             <span>Deadline Risk: <span className={clsx("font-bold", riskLevel === 'high' ? "text-danger" : riskLevel === 'medium' ? "text-warning" : "text-info")}>{riskLevel.toUpperCase()}</span></span>

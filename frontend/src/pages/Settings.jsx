@@ -28,26 +28,29 @@ const AVATAR_COLORS = [
 
 function Section({ title, icon: Icon, children }) {
   return (
-    <div className="glass-sm p-10 rounded-[40px] border-white/5 space-y-8 bg-white/[0.01]">
-      <div className="flex items-center gap-4 mb-2">
-         <div className="p-3 rounded-2xl bg-accent/10 text-accent">
-           <Icon className="w-5 h-5" />
+    <div className="glass-sm p-10 rounded-[40px] border-white/5 space-y-8 bg-[#1a1b1e] shadow-[20px_20px_60px_#111214,-20px_-20px_60px_#232428] relative overflow-hidden">
+      <div className="absolute -top-12 -right-12 w-24 h-24 bg-accent/5 blur-3xl rounded-full" />
+      <div className="flex items-center gap-4 mb-2 relative z-10">
+         <div className="p-3.5 rounded-2xl bg-accent shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3),4px_4px_8px_rgba(37,99,235,0.2)] text-white">
+           <Icon className="w-5 h-5 drop-shadow-md" />
          </div>
-         <h2 className="text-[16px] font-mono text-text-primary tracking-[0.2em] uppercase font-bold">{title}</h2>
+         <h2 className="text-[17px] font-display italic text-text-primary tracking-[0.1em] font-bold">{title}</h2>
       </div>
-      <div className="h-px bg-white/5" />
-      {children}
+      <div className="h-px bg-white/5 relative z-10" />
+      <div className="relative z-10">
+        {children}
+      </div>
     </div>
   );
 }
 
 function ToggleRow({ label, value, onChange, disabled }) {
   return (
-    <div className={clsx("flex items-center justify-between py-5 border-b border-white/5 last:border-0", disabled && "opacity-40")}>
-      <span className="text-[15px] text-text-primary font-medium">{label}</span>
+    <div className={clsx("flex items-center justify-between py-6 border-b border-white/5 last:border-0", disabled && "opacity-40")}>
+      <span className="text-[16px] text-text-secondary font-medium">{label}</span>
       <button
         onClick={() => !disabled && onChange(!value)}
-        className={clsx('toggle-pill cursor-pointer', value && 'on', disabled && 'cursor-not-allowed')}
+        className={clsx('toggle-pill cursor-pointer shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]', value && 'on', disabled && 'cursor-not-allowed')}
         aria-label={label}
         disabled={disabled}
       />
@@ -56,14 +59,13 @@ function ToggleRow({ label, value, onChange, disabled }) {
 }
 
 export default function Settings() {
-  const { user, profile, accent, theme, setAccent, setTheme, providerToken, updateProfile } = useAuthStore();
-  const [displayName, setDisplayName] = useState(profile?.display_name || '');
-  const [avatarColor, setAvatarColor] = useState(profile?.avatar_color || '#2563EB');
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
+  const { user, profile, accent, theme, setAccent, setTheme, providerToken, updateProfile, loadProfile } = useAuthStore();
+  const [displayName, setDisplayName] = useState('');
+  const [avatarColor, setAvatarColor] = useState('#2563EB');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
-
-  const initials = (displayName || profile?.username || 'TP').slice(0, 1).toUpperCase();
 
   useEffect(() => {
     if (profile) {
@@ -74,13 +76,25 @@ export default function Settings() {
   }, [profile]);
 
   const handleSaveProfile = async () => {
-    const res = await updateProfile({ 
-      display_name: displayName,
-      avatar_url: avatarUrl,
-      avatar_color: avatarColor
-    });
-    if (res.success) toast.success('Identity Synchronized');
-    else toast.error('Link Interrupted: ' + res.error);
+    setIsSaving(true);
+    try {
+      const res = await updateProfile({ 
+        display_name: displayName,
+        avatar_url: avatarUrl,
+        avatar_color: avatarColor
+      });
+      if (res.success) {
+        toast.success('Your identity has been synchronized.');
+        // Force reload profile to ensure state is fresh
+        if (user?.id) await loadProfile(user.id);
+      } else {
+        toast.error('Protocol Interrupted: ' + res.error);
+      }
+    } catch (e) {
+      toast.error('Critical Update Error: ' + e.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleFileUpload = async (event) => {
@@ -126,6 +140,8 @@ export default function Settings() {
     }
   };
 
+  const initials = (displayName || profile?.username || 'TP').slice(0, 1).toUpperCase();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -144,7 +160,7 @@ export default function Settings() {
             <div className="flex flex-col md:flex-row gap-12 items-start">
                <div className="relative group">
                   <div
-                    className="w-40 h-40 rounded-[48px] flex items-center justify-center text-white text-[48px] font-display italic flex-shrink-0 shadow-2xl ring-4 ring-white/5 overflow-hidden transition-all group-hover:ring-accent/40"
+                    className="w-40 h-40 rounded-[48px] flex items-center justify-center text-white text-[48px] font-display italic flex-shrink-0 shadow-[20px_20px_60px_#111214,-20px_-20px_60px_#232428] ring-4 ring-white/10 overflow-hidden transition-all group-hover:ring-accent/40"
                     style={{ background: avatarUrl ? `url(${avatarUrl}) center/cover` : avatarColor }}
                   >
                     {!avatarUrl && initials}
@@ -195,10 +211,18 @@ export default function Settings() {
                         placeholder="e.g. Maverick"
                         className="h-14 rounded-2xl"
                       />
-                      <p className="text-[11px] font-mono text-text-tertiary opacity-40 px-2 italic">This name will be shown to your collaborators.</p>
+                      <p className="text-[11px] font-mono text-text-secondary opacity-80 px-2 italic">This name will be shown to your collaborators.</p>
                     </div>
                     <div className="flex items-end pb-4">
-                       <Button variant="accent" className="w-full h-14 rounded-2xl font-mono uppercase tracking-[0.2em] shadow-xl shadow-accent/20" onClick={handleSaveProfile}>Save Changes</Button>
+                       <Button 
+                         variant="accent" 
+                         disabled={isSaving}
+                         className="w-full h-14 rounded-2xl font-mono uppercase tracking-[0.2em] shadow-xl shadow-accent/20" 
+                         onClick={handleSaveProfile}
+                       >
+                         {isSaving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+                         {isSaving ? 'Syncing...' : 'Save Changes'}
+                       </Button>
                     </div>
                   </div>
                </div>
