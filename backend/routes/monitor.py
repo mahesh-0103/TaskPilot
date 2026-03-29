@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from models.schemas import SimulateDelayRequest, SimulateDelayResponse, Task
 from services.monitoring_service import simulate_delay, monitor_tasks, get_risk_assessment
+from services import escalation_service
+
+router = APIRouter()
 
 @router.get("/risk/{user_id}")
 def predictive_risk_endpoint(user_id: str):
@@ -12,9 +15,6 @@ def predictive_risk_endpoint(user_id: str):
         return risk
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-from services import escalation_service
-
-router = APIRouter()
 
 @router.post("/simulate-delay", response_model=SimulateDelayResponse)
 def simulate_delay_endpoint(body: SimulateDelayRequest):
