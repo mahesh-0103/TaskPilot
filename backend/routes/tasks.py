@@ -27,8 +27,8 @@ def extract_tasks_endpoint(body: ExtractTasksRequest, background_tasks: Backgrou
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Extraction failed: {exc}")
 
-    # Persist immediately
-    db.upsert_tasks(tasks)
+    # Persist immediately with explicit user linkage
+    db.upsert_tasks(tasks, user_id=body.user_id)
 
     # Sync to Calendar in background if token exists
     if body.token and tasks:

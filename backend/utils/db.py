@@ -41,33 +41,37 @@ def get_service_client() -> Client:
 # ── Task helpers ─────────────────────────────────────────────────────────────
 
 def save_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
-    """Insert tasks into Supabase. Ensure task_id exists."""
-    client = get_service_client() if not user_id else get_client()
+    """Insert tasks into Supabase. Ensure task_id and user_id exist."""
+    client = get_service_client()
     try:
+        ts = datetime.now(timezone.utc).isoformat()
         for t in tasks:
             if not t.get("task_id"):
                 t["task_id"] = str(uuid.uuid4())
             if user_id and not t.get("user_id"):
                 t["user_id"] = user_id
-        client.table("tasks").upsert(tasks).execute()
+            if not t.get("created_at"): t["created_at"] = ts
+            if not t.get("updated_at"): t["updated_at"] = ts
+            
+        logger.info(f"DB WRITE: Upserting {len(tasks)} tasks via Service Role.")
+        res = client.table("tasks").upsert(tasks).execute()
+        if not res.data:
+            logger.warning("DB WRITE: Success signal, but 0 rows returned.")
     except Exception as e:
         logger.error(f"Error saving tasks to Supabase: {e}")
 
-from functools import lru_cache
-
-# Cache task list for 5 seconds (fast-moving environment)
-@lru_cache(maxsize=32)
-def get_cached_tasks(user_id: Optional[str] = None):
-    # If no user_id (global scan), use the service client to bypass RLS
-    client = get_service_client() if not user_id else get_client()
-    query = client.table("tasks").select("*")
-    if user_id:
-        query = query.eq("user_id", user_id)
-    return query.execute().data or []
-
 def get_tasks(user_id: Optional[str] = None) -> List[dict]:
-    """Fetch all tasks as a list of dicts. (Optimized with short-circuit cache)"""
-    return get_cached_tasks(user_id)
+    """Fetch all tasks for a specific user or global scan."""
+    client = get_service_client()
+    try:
+        query = client.table("tasks").select("*")
+        if user_id:
+            query = query.eq("user_id", user_id)
+        result = query.execute()
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Error fetching tasks from Supabase: {e}")
+        return []
 
 def get_task_by_id(task_id: str, user_id: Optional[str] = None) -> Optional[dict]:
     """Fetch a single task by task_id. Returns None if not found."""
@@ -131,12 +135,13 @@ def get_logs(user_id: Optional[str] = None) -> List[dict]:
 
 # ── Aliases to preserve compatibility with existing routes/services ─────────
 
-def upsert_tasks(tasks: List[dict]):
-    get_cached_tasks.cache_clear() # Invalidate on write
+def upsert_tasks(tasks: List[dict], user_id: Optional[str] = None):
     if tasks and not isinstance(tasks[0], dict):
         tasks = [t.model_dump() for t in tasks]
+    
+    # Critical: Enforce NOT NULL for user_id to avoid discard errors
     tasks = [{k: v for k, v in t.items() if v is not None} for t in tasks]
-    save_tasks(tasks)
+    save_tasks(tasks, user_id=user_id)
 
 def get_all_tasks() -> List[dict]:
     return get_tasks()

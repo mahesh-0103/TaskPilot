@@ -26,8 +26,11 @@ export default function Workflow() {
   const [isExecuting, setIsExecuting] = useState(false);
 
   useEffect(() => {
-    if (user?.id) loadTasks(user.id);
-  }, [user]);
+    if (user?.id) {
+        console.log("Strategic node fetching initiated for:", user.id);
+        loadTasks(user.id);
+    }
+  }, [user?.id]);
 
   const handleExecute = async () => {
     setIsExecuting(true);
