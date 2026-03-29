@@ -131,8 +131,7 @@ const useAuthStore = create((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .update(updates)
-        .eq('id', userId)
+        .upsert({ id: userId, ...updates })
         .select()
         .single();
       

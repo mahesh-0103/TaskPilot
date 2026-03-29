@@ -133,14 +133,14 @@ export default function Settings() {
       className="pb-20 max-w-5xl mx-auto space-y-12"
     >
       <header className="space-y-4">
-        <span className="font-mono text-[11px] text-accent tracking-[0.4em] uppercase font-bold">OS_CORE // PREFERENCES</span>
-        <h1 className="text-[72px] leading-none font-display italic text-text-primary tracking-tighter">System Console</h1>
+        <span className="font-mono text-[11px] text-accent tracking-[0.4em] uppercase font-bold">USER // PREFERENCES</span>
+        <h1 className="text-[72px] leading-none font-display italic text-text-primary tracking-tighter">Account Settings</h1>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-12 space-y-10">
           {/* Identity Section */}
-          <Section title="Identity" icon={User}>
+          <Section title="Your Profile" icon={User}>
             <div className="flex flex-col md:flex-row gap-12 items-start">
                <div className="relative group">
                   <div
@@ -166,7 +166,7 @@ export default function Settings() {
 
                <div className="flex-1 w-full space-y-10">
                   <div className="space-y-6">
-                    <p className="text-[12px] font-mono text-text-tertiary uppercase tracking-widest font-bold">Spectral Signature (Theme Color)</p>
+                    <p className="text-[12px] font-mono text-text-tertiary uppercase tracking-widest font-bold">Pick an individual color</p>
                     <div className="flex gap-3 flex-wrap">
                       {AVATAR_COLORS.map(c => (
                         <button
@@ -181,7 +181,7 @@ export default function Settings() {
                       ))}
                       <div className="w-px h-10 bg-white/5 mx-2" />
                       <Button size="sm" variant="ghost" className="text-[11px] font-mono h-10 px-4 flex items-center gap-2 border-white/10" onClick={syncGoogleProfile}>
-                        <RefreshCw className="w-3.5 h-3.5" /> Sync Google
+                        <RefreshCw className="w-3.5 h-3.5" /> Google Profile
                       </Button>
                     </div>
                   </div>
@@ -189,16 +189,16 @@ export default function Settings() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-4">
                       <Input
-                        label="Public Identifier"
+                        label="Display Name"
                         value={displayName}
                         onChange={e => setDisplayName(e.target.value)}
-                        placeholder="Alias"
+                        placeholder="e.g. Maverick"
                         className="h-14 rounded-2xl"
                       />
-                      <p className="text-[11px] font-mono text-text-tertiary opacity-40 px-2 italic">This alias is broadcasted to all node collaborators in the grid.</p>
+                      <p className="text-[11px] font-mono text-text-tertiary opacity-40 px-2 italic">This name will be shown to your collaborators.</p>
                     </div>
                     <div className="flex items-end pb-4">
-                       <Button variant="accent" className="w-full h-14 rounded-2xl font-mono uppercase tracking-[0.2em] shadow-xl shadow-accent/20" onClick={handleSaveProfile}>Commit Identity Updates</Button>
+                       <Button variant="accent" className="w-full h-14 rounded-2xl font-mono uppercase tracking-[0.2em] shadow-xl shadow-accent/20" onClick={handleSaveProfile}>Save Changes</Button>
                     </div>
                   </div>
                </div>
@@ -208,10 +208,10 @@ export default function Settings() {
 
         <div className="lg:col-span-6 space-y-10">
           {/* Appearance */}
-          <Section title="Appearance" icon={Palette}>
+          <Section title="Look & Feel" icon={Palette}>
             <div className="space-y-10">
               <div>
-                <p className="text-[12px] font-mono text-text-tertiary uppercase tracking-widest font-bold mb-6">Accent Frequency</p>
+                <p className="text-[12px] font-mono text-text-tertiary uppercase tracking-widest font-bold mb-6">Interface Color</p>
                 <div className="flex items-center gap-4 flex-wrap">
                   {ACCENT_OPTIONS.map(({ key, color }) => (
                     <button
@@ -227,7 +227,7 @@ export default function Settings() {
                 </div>
               </div>
               <ToggleRow 
-                label="Deep Space Atmosphere (Dark Mode)" 
+                label="Dark Mode (Night Owl)" 
                 value={theme === 'dark'} 
                 onChange={() => setTheme(theme === 'dark' ? 'light' : 'dark')} 
               />
@@ -235,11 +235,11 @@ export default function Settings() {
           </Section>
 
           {/* Decommission Section */}
-          <Section title="Danger Zone" icon={Trash2}>
+          <Section title="Critical Actions" icon={Trash2}>
              <div className="space-y-6">
-                <p className="text-[13px] text-text-secondary leading-relaxed font-ui italic">Decommissioning your node will permanently purge all cloud telemetry, dispatches, and neural logs associated with this identity.</p>
+                <p className="text-[13px] text-text-secondary leading-relaxed font-ui italic">Deleting your account will permanently remove all your tasks, notes, and activity logs.</p>
                 <Button variant="ghost" className="w-full h-14 border-danger/20 text-danger hover:bg-danger/10 font-mono uppercase tracking-widest text-[11px]">
-                   Initialize Wipe Sequence
+                   Delete Everything
                 </Button>
              </div>
           </Section>

@@ -66,12 +66,12 @@ export default function Extract() {
       {/* Header */}
       <header className="flex items-center justify-between mb-12 flex-wrap gap-8">
         <div className="space-y-2">
-           <span className="font-mono text-[11px] text-text-tertiary tracking-[0.4em] uppercase font-bold">Neural Ingestion // <span className="text-accent underline cursor-pointer">Live</span></span>
-           <h1 className="text-[56px] leading-tight font-display italic text-text-primary tracking-tight">Extract Intelligence</h1>
+           <span className="font-mono text-[11px] text-text-tertiary tracking-[0.4em] uppercase font-bold">Task AI // <span className="text-accent underline cursor-pointer">Live</span></span>
+           <h1 className="text-[56px] leading-tight font-display italic text-text-primary tracking-tight">Convert Text to Tasks</h1>
            <div className="flex gap-4 font-mono text-[10px] text-text-tertiary tracking-widest uppercase items-center">
               <span>Entropy Level: <span className="text-success font-bold">Low</span></span>
               <span>//</span>
-              <span>Pattern Recognition: <span className="text-accent font-bold">Active</span></span>
+              <span>AI Accuracy: <span className="text-accent font-bold">99.1%</span></span>
            </div>
         </div>
       </header>
