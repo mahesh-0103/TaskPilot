@@ -72,3 +72,19 @@ def self_heal(tasks: List[Task], token: str = None) -> Tuple[List[Task], List[Lo
         db.insert_log(log)
 
     return healed, logs
+
+def run_healing_cycle():
+    """Autonomous background cycle: Fetches all tasks and performs self-healing."""
+    tasks_raw = db.get_all_tasks()
+    if not tasks_raw:
+        return
+        
+    tasks = []
+    for t in tasks_raw:
+        try:
+            tasks.append(Task(**t))
+        except:
+            continue
+            
+    if tasks:
+        self_heal(tasks)
