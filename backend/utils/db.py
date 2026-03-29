@@ -27,8 +27,12 @@ def get_service_client() -> Client:
     """Uses the high-privilege service role key for background operations (RLS Bypass)."""
     global _service_client
     if _service_client is None:
-        # Use Service Role Key if available, else fall back to standard Key
         key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_KEY
+        if settings.SUPABASE_SERVICE_ROLE_KEY:
+            logger.info(f"Supabase Service Client initializing with SERVICE_ROLE_KEY (k={key[:5]}...)")
+        else:
+            logger.info(f"Supabase Service Client falling back to SUPABASE_KEY (k={key[:5]}...)")
+        
         if not settings.SUPABASE_URL or not key:
             raise RuntimeError("SUPABASE_URL must be set in .env")
         _service_client = create_client(settings.SUPABASE_URL, key)
