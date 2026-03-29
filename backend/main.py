@@ -16,16 +16,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 1. Global Exception Handler for Diagnostics
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logging.error(f"GLOBAL_CRASH: {exc}\n{traceback.format_exc()}")
-    return JSONResponse(
-        status_code=500,
-        content={"detail": f"INTERNAL_SERVER_ERROR: {str(exc)}"},
-    )
-
-# 2. CORS Middleware (Outermost)
+# 1. CORS Middleware (Positioned first to wrap even the exception handler)
+# We use ["*"] as requested to maximize reliability during debugging.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,8 +26,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. GZIP Middleware
+# 2. GZIP Middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# 3. Global Exception Handler for Diagnostics
+# This captures any 500 errors and returns them as JSON instead of crashing.
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.error(f"GLOBAL_CRASH_DETAIL: {exc}\n{traceback.format_exc()}")
+    # We must ensure CORS headers are present even in this response
+    # Often, FastAPI's custom JSONResponse here will miss the middleware-injected headers
+    # So we inject them manually if needed, but normally middleware should handle if ordered correctly.
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"INTERNAL_SERVER_ERROR: {str(exc)}"},
+    )
 
 app.include_router(tasks.router, prefix="/tasks", tags=["Task Extraction"])
 app.include_router(workflow.router, prefix="/workflow", tags=["Workflow"])
