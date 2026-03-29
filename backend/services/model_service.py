@@ -90,43 +90,44 @@ class ModelService:
             logger.warning("No LLM API keys configured.")
             return []
 
-        # Start a competitive race
-        with ThreadPoolExecutor(max_workers=len(tasks_to_try)) as executor:
-            future_to_name = {executor.submit(fn, text): name for fn, name in tasks_to_try}
-            
-            for future in as_completed(future_to_name):
-                name = future_to_name[future]
+        # Start a competitive race with a sub-15s total threshold
+        try:
+            with ThreadPoolExecutor(max_workers=len(tasks_to_try)) as executor:
+                future_to_name = {executor.submit(fn, text): name for fn, name in tasks_to_try}
+                
+                # Global timeout of 12 seconds for the race
                 try:
-                    result = future.result()
-                    if result:
-                        logger.info(f"RACE WINNER: {name} manifested data first.")
-                        _cache_set(cache_key, result)
-                        return result
-                except Exception as e:
-                    logger.error(f"RACE PARTICIPANT FAILED ({name}): {e}")
+                    for future in as_completed(future_to_name, timeout=12.0):
+                        name = future_to_name[future]
+                        try:
+                            result = future.result()
+                            if result and isinstance(result, list):
+                                logger.info(f"RACE WINNER: {name} manifested data.")
+                                _cache_set(cache_key, result)
+                                return result
+                        except Exception as e:
+                            logger.error(f"NEURAL ERROR ({name}): {e}")
+                except TimeoutError:
+                    logger.warning("Neural race timed out. Shifting to localized extraction.")
+        except Exception as e:
+            logger.error(f"FATAL RACE ERROR: {e}")
 
-        logger.warning("All participants in the neural race failed to manifest data.")
         return []
 
     def predict_tasks_mistral(self, text: str) -> list:
         from settings import settings
         if not settings.MISTRAL_API_KEY:
-            logger.info("Mistral API key not found. Skipping Mistral.")
             return []
 
         today = datetime.date.today().isoformat()
         prompt = (
             "You are a 'Digital Chief of Staff'. Extract action items from this meeting transcript.\n"
-            "Return ONLY a raw JSON array. No markdown. No explanation.\n\n"
+            "Return ONLY a raw JSON array.\n\n"
             f"Transcript:\n{text}\n\n"
-            "Rules:\n"
-            "1. Infer deadlines relative to today: " + today + "\n"
-            "2. Fields: task_id (uuid), task (full sentence), owner, deadline (YYYY-MM-DD), priority (low|medium|high), status(pending), depends_on([]).\n"
-            "3. If no clear owner, use 'unassigned'."
+            "Fields: task_id, task, owner, deadline(YYYY-MM-DD), priority(low|medium|high)."
         )
 
         try:
-            logger.info("Attempting extraction with Mistral...")
             import httpx
             headers = {
                 "Authorization": f"Bearer {settings.MISTRAL_API_KEY}",
@@ -135,10 +136,11 @@ class ModelService:
             payload = {
                 "model": "mistral-large-latest",
                 "messages": [{"role": "user", "content": prompt}],
-                "response_format": {"type": "json_object"} if "mistral-large" in "mistral-large-latest" else None
+                "response_format": {"type": "json_object"}
             }
             
-            with httpx.Client(timeout=30.0) as client:
+            # Tighter 8s timeout for the fetch
+            with httpx.Client(timeout=8.0) as client:
                 response = client.post("https://api.mistral.ai/v1/chat/completions", json=payload, headers=headers)
                 response.raise_for_status()
                 res_json = response.json()
