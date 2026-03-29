@@ -45,6 +45,10 @@ def save_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
     client = get_service_client()
     try:
         ts = datetime.now(timezone.utc).isoformat()
+        # Schema adaptation: remove columns that don't exist in the current DB schema
+        forbidden_cols = ["due_time", "is_checked"] 
+        
+        sanitized_tasks = []
         for t in tasks:
             if not t.get("task_id"):
                 t["task_id"] = str(uuid.uuid4())
@@ -53,10 +57,12 @@ def save_tasks(tasks: List[dict], user_id: Optional[str] = None) -> None:
             if not t.get("created_at"): t["created_at"] = ts
             if not t.get("updated_at"): t["updated_at"] = ts
             
-        logger.info(f"DB WRITE: Upserting {len(tasks)} tasks via Service Role.")
-        res = client.table("tasks").upsert(tasks).execute()
-        if not res.data:
-            logger.warning("DB WRITE: Success signal, but 0 rows returned.")
+            # Remove non-existent fields for the current schema version
+            clean_t = {k: v for k, v in t.items() if k not in forbidden_cols}
+            sanitized_tasks.append(clean_t)
+            
+        logger.info(f"DB WRITE: Upserting {len(sanitized_tasks)} sanctioned tasks via Service Role.")
+        res = client.table("tasks").upsert(sanitized_tasks).execute()
     except Exception as e:
         logger.error(f"Error saving tasks to Supabase: {e}")
 
