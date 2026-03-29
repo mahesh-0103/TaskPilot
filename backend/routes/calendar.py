@@ -123,6 +123,7 @@ def delete_event(body: DeleteEventRequest):
         logger.error(f"Calendar delete failed: {e}")
         raise HTTPException(status_code=500, detail=f"Calendar delete failed: {e}")
 
+@router.post("/send-reminder")
 def send_reminder(body: SendReminderRequest, token: Optional[str] = None):
     """
     Send a Gmail reminder for a task.

@@ -95,8 +95,8 @@ export default function TaskDetailPanel({ task, onClose }) {
     toast.promise(
       (async () => {
         await updateTask({ status: 'delayed' });
-        // Trigger self-heal on the backend
-        await apiRequest('/self-heal/trigger', { task_id: task.task_id, user_id: user.id });
+        // Trigger self-heal on the backend (monitored protocol)
+        await apiRequest('/monitor/self-heal/trigger', { task_id: task.task_id, user_id: user.id });
       })(),
       {
         loading: 'Flagging as delayed...',

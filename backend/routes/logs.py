@@ -5,7 +5,7 @@ from utils import db
 router = APIRouter()
 
 
-@router.get("/logs", response_model=GetLogsResponse)
+@router.get("/", response_model=GetLogsResponse)
 def get_logs_endpoint():
     """
     Retrieve all audit log entries, ordered by timestamp ascending.

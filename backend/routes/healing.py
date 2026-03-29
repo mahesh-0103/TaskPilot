@@ -5,7 +5,7 @@ from services.healing_service import self_heal
 router = APIRouter()
 
 
-@router.post("/self-heal", response_model=SelfHealResponse)
+@router.post("/")
 def self_heal_endpoint(body: SelfHealRequest):
     """
     Apply self-healing rules to all delayed tasks and persist changes.

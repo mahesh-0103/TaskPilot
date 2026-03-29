@@ -31,7 +31,7 @@ def simulate_delay_endpoint(body: SimulateDelayRequest):
 
     return SimulateDelayResponse(message="Escalation sequence transmitted")
 
-@router.post("/monitor")
+@router.post("/")
 def monitor_endpoint(body: dict):
     """
     Step 3: Monitor runs. Inspects tasks, detects breaches, and triggers Step 5 (Escalation).
