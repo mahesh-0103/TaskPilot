@@ -117,12 +117,22 @@ class ModelService:
                 "messages": [{"role": "user", "content": prompt}]
             }
             
-            # Use a slightly longer 15s timeout for premium model
-            with httpx.Client(timeout=15.0) as client:
+            # Use a robust 30s timeout for premium model
+            with httpx.Client(timeout=30.0) as client:
                 response = client.post("https://api.mistral.ai/v1/chat/completions", json=payload, headers=headers)
                 response.raise_for_status()
                 res_json = response.json()
-                content = res_json["choices"][0]["message"]["content"]
+                
+                # Safe key access
+                choices = res_json.get("choices")
+                if not choices or not isinstance(choices, list) or len(choices) == 0:
+                    logger.warning("Mistral returned empty choices.")
+                    return []
+                    
+                content = choices[0].get("message", {}).get("content", "")
+                if not content:
+                    logger.warning("Mistral returned empty content.")
+                    return []
                 
                 # Robust parsing of JSON from markdown if exists
                 match = re.search(r"\[.*\]", content, re.DOTALL)

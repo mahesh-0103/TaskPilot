@@ -26,8 +26,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. GZIP Middleware
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# 3. GZIP Middleware (Temporarily disabled for CORS isolation)
+# app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # 3. Global Exception Handler for Diagnostics
 # This captures any 500 errors and returns them as JSON instead of crashing.
